@@ -10,7 +10,7 @@ import io.swagger.server.model.Place
 import io.swagger.server.model.PricingPlan
 import io.swagger.server.model.Reservation
 
-class DefaultApi (
+class DefaultApi(
                   defaultService: DefaultApiService,
                   defaultMarshaller: DefaultApiMarshaller
                 ) {
@@ -22,64 +22,63 @@ class DefaultApi (
       get {
         defaultService.placesFreeGet()
       }
-    }
-//  ~
-//      path("places") {
-//        get {
-//
-//
-//          defaultService.placesGet()
-//
-//
-//        }
-//      } ~
-//      path("prices") {
-//        get {
-//
-//
-//          defaultService.pricesGet()
-//
-//
-//        }
-//      } ~
-//      path("reservation") { (idReservation) =>
-//        delete {
-//
-//
-//          defaultService.reservationIdReservationDelete(idReservation = idReservation)
-//
-//
-//        }
-//      } ~
-//      path("reservation") { (idReservation) =>
-//        get {
-//
-//
-//          defaultService.reservationIdReservationGet(idReservation = idReservation)
-//
-//
-//        }
-//      } ~
-//      path("reservation" / "settle") { (idReservation) =>
-//        put {
-//
-//
-//          defaultService.reservationIdReservationSettlePut(idReservation = idReservation)
-//
-//
-//        }
-//      } ~
-//      path("reservation") {
-//        post {
-//          parameters("body".as[String]) { (body) =>
-//
-//
-//            defaultService.reservationPost(body = body)
-//
-//
-//          }
-//        }
-//      }
+    } ~
+      //      path("places") {
+      //        get {
+      //
+      //
+      //          defaultService.placesGet()
+      //
+      //
+      //        }
+      //      } ~
+      path("prices") {
+        get {
+
+
+          defaultService.pricesGet()
+
+
+        }
+        //      } ~
+        //      path("reservation") { (idReservation) =>
+        //        delete {
+        //
+        //
+        //          defaultService.reservationIdReservationDelete(idReservation = idReservation)
+        //
+        //
+        //        }
+        //      } ~
+        //      path("reservation") { (idReservation) =>
+        //        get {
+        //
+        //
+        //          defaultService.reservationIdReservationGet(idReservation = idReservation)
+        //
+        //
+        //        }
+        //      } ~
+        //      path("reservation" / "settle") { (idReservation) =>
+        //        put {
+        //
+        //
+        //          defaultService.reservationIdReservationSettlePut(idReservation = idReservation)
+        //
+        //
+        //        }
+        //      } ~
+        //      path("reservation") {
+        //        post {
+        //          parameters("body".as[String]) { (body) =>
+        //
+        //
+        //            defaultService.reservationPost(body = body)
+        //
+        //
+        //          }
+        //        }
+      }
 }
 
 trait DefaultApiService {

@@ -1,13 +1,13 @@
 package io.swagger.server.model
 
 /**
- * @param code 
+ * @param id
  * @param zone 
  * @param status 
  * @param placeType 
  */
 case class Place (
-  code: Int,
+  id: Int,
   zone: String,
   status: Int,
   placeType: PlaceType

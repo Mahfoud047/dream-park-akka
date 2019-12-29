@@ -9,13 +9,13 @@ import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import fr.mipn.parc.ParkSystem
 import io.swagger.server.api.{DefaultApi, DefaultApiMarshaller, DefaultApiService}
-import io.swagger.server.model.{Place, PlaceType, PricingPlan, Reservation}
+import io.swagger.server.model.{Error, Place, PricingPlan, Reservation}
 import akka.pattern.ask
 import akka.util.Timeout
 
 import scala.concurrent.duration._
 import fr.mipn.parc.ResponseTypes._
-import fr.mipn.parc.actors.PlaceAllocator
+import fr.mipn.parc.actors.{FeeCalculator, PlaceAllocator, ReservationScheduler}
 
 
 object DreamParkApp extends App {
@@ -26,6 +26,7 @@ object DreamParkApp extends App {
   // needed to run the route
   implicit val materializer = ActorMaterializer()
   implicit val executionContext = system.dispatcher
+  implicit val timeout = new Timeout(2 seconds)
 
 
   object DefaultMarshaller extends DefaultApiMarshaller with SprayJsonSupport {
@@ -38,14 +39,11 @@ object DreamParkApp extends App {
 
     override implicit def toEntityMarshallerPricingPlanarray: ToEntityMarshaller[List[PricingPlan]] = listFormat(jsonFormat5(PricingPlan))
 
-    override implicit def toEntityMarshallerReservation: ToEntityMarshaller[Reservation] = jsonFormat6(Reservation)
+    override implicit def toEntityMarshallerReservation: ToEntityMarshaller[Reservation] = jsonFormat7(Reservation)
   }
 
 
   object DefaultService extends DefaultApiService {
-
-
-    implicit val timeout = new Timeout(2 seconds)
 
     /**
      * Code: 200, Message: List of availlable places, DataType: List[Place]
@@ -57,10 +55,10 @@ object DreamParkApp extends App {
 
       requestcontext =>
         response.flatMap {
-          case Right(res: List[Place])
+          case Right(res)
           => placesFreeGet200(res)(toEntityMarshallerPlacearray)(requestcontext)
           case Left(err: Error)
-          => placesFreeGet422(model.Error(err.getMessage))(toEntityMarshallerError)(requestcontext)
+          => placesFreeGet422(err)(toEntityMarshallerError)(requestcontext)
         }
 
     }
@@ -75,7 +73,17 @@ object DreamParkApp extends App {
      * Code: 200, Message: List of possible prices, DataType: List[PricingPlan]
      * Code: 422, Message: Unexpected error, DataType: Error
      */
-    override def pricesGet()(implicit toEntityMarshallerPricingPlanarray: ToEntityMarshaller[List[PricingPlan]], toEntityMarshallerError: ToEntityMarshaller[model.Error]): Route = ???
+    override def pricesGet()(implicit toEntityMarshallerPricingPlanarray: ToEntityMarshaller[List[PricingPlan]], toEntityMarshallerError: ToEntityMarshaller[model.Error]): Route = {
+      val response = (parkSystem.feeCalculator ? FeeCalculator.GetPricingPlans).mapTo[EitherArrayPricingPlan]
+
+      requestcontext =>
+        response.flatMap {
+          case Right(res)
+          => pricesGet200(res)(toEntityMarshallerPricingPlanarray)(requestcontext)
+          case Left(err: Error)
+          => pricesGet422(err)(toEntityMarshallerError)(requestcontext)
+        }
+    }
 
     /**
      * Code: 204, Message: OK
@@ -93,13 +101,23 @@ object DreamParkApp extends App {
      * Code: 204, Message: OK
      * Code: 422, Message: Unexpected error, DataType: Error
      */
-    override def reservationIdReservationSettlePut(idReservation: Int)(implicit toEntityMarshallerError: ToEntityMarshaller[model.Error]): Route = ???
+    override def reservationIdReservationSettlePut(idReservation: Int)(implicit toEntityMarshallerError: ToEntityMarshaller[Error]): Route = ???
 
     /**
      * Code: 201, Message: OK
      * Code: 422, Message: Unexpected error, DataType: Error
      */
-    override def reservationPost(body: String)(implicit toEntityMarshallerError: ToEntityMarshaller[model.Error]): Route = ???
+    override def reservationPost(body: String)(implicit toEntityMarshallerError: ToEntityMarshaller[Error]): Route = {
+      val response = (parkSystem.reservationScheduler ? ReservationScheduler.ReservePlace).mapTo[EitherPostReservation]
+
+      requestcontext =>
+        response.flatMap {
+          case Right(_)
+          => reservationPost201(requestcontext)
+          case Left(err: Error)
+          => pricesGet422(err)(toEntityMarshallerError)(requestcontext)
+        }
+    }
   }
 
 
