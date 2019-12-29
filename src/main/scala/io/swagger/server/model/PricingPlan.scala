@@ -1,6 +1,5 @@
 package io.swagger.server.model
 
-import java.math.BigDecimal
 
 /**
  * @param name 
@@ -11,9 +10,9 @@ import java.math.BigDecimal
  */
 case class PricingPlan (
   name: Option[String],
-  price: BigDecimal,
+  price: Double,
   timeUnit: String,
   placeTypes: List[PlaceType],
-  extraTimeFine: BigDecimal
+  extraTimeFine: Double
 )
 

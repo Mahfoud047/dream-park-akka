@@ -1,6 +1,5 @@
 package io.swagger.server.model
 
-
 /**
  * @param code 
  * @param zone 

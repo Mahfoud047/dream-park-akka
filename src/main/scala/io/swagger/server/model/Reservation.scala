@@ -1,6 +1,5 @@
 package io.swagger.server.model
 
-
 /**
  * @param placeId 
  * @param startTime  for example: ''2014-08-17T14:07''
