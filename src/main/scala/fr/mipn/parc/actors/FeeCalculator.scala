@@ -6,20 +6,23 @@ import io.swagger.server.model.{PlaceType, PricingPlan}
 
 
 object FeeCalculator {
+
+  val placeTypes = List(PlaceType(1, "voitures", "desc de type voitures"),
+    PlaceType(2, "velo", "desc de type velo"))
+
   var plans: Map[String, PricingPlan] = Map(
     "Starter" -> PricingPlan(
       "Starter",
       2.50d,
       1,
-      List(PlaceType("voitures", "desc de type voitures"),
-        PlaceType("velo", "desc de type velo")),
+      List(1,2),
       3.0d
     ),
     "Premium" -> PricingPlan(
       "Premium",
       3.5d,
       5,
-      List(PlaceType("voitures", "desc de type voitures")),
+      List(1),
       1.0d
     )
   ).withDefaultValue(null)

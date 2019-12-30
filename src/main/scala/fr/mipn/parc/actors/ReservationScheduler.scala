@@ -6,6 +6,7 @@ import io.swagger.server.model.{Error, Reservation}
 import akka.pattern.ask
 import akka.util.Timeout
 import fr.mipn.parc.ResponseTypes.{EitherCheckPricingExists, OptionAllocatePlace}
+import io.swagger.server.input_model.PostReservation
 
 import scala.concurrent.duration._
 
@@ -17,7 +18,7 @@ object ReservationScheduler {
     // empty
   ).withDefaultValue(null)
 
-  case class ReservePlace(reservation: Reservation)
+  case class ReservePlace(reservation: PostReservation)
 
   def apply(feeCalculator: ActorRef, placeAllocator: ActorRef): Props =
     Props(new ReservationScheduler(feeCalculator, placeAllocator))
@@ -49,10 +50,9 @@ case class ReservationScheduler(feeCalculator: ActorRef, placeAllocator: ActorRe
         }
 
       lastId += 1
-      reservations += (lastId -> reservePlace.reservation.copy(id = lastId))
+      reservations += (lastId -> reservePlace.reservation.toReservation(id = lastId))
 
       Right(Ok)
-
 
     case _@msg => sender ! s"I recieved the msg $msg"
   }

@@ -1,5 +1,8 @@
 package io.swagger.server.model
 
+import io.swagger.server.enums.PlaceStatus
+import io.swagger.server.enums.PlaceStatus._
+
 /**
  * @param id 
  * @param zone 
@@ -9,7 +12,8 @@ package io.swagger.server.model
 case class Place (
   id: Int,
   zone: String,
-  status: String,
-  placeTypeId: Int
+  placeTypeId: Int,
+  status: PlaceStatus = PlaceStatus.FREE
 )
+
 

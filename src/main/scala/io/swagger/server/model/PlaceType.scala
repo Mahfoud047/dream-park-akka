@@ -1,5 +1,8 @@
 package io.swagger.server.model
 
+import spray.json.DefaultJsonProtocol.jsonFormat3
+import spray.json.RootJsonFormat
+
 /**
  * @param id 
  * @param name 
@@ -10,4 +13,5 @@ case class PlaceType (
   name: String,
   description: String
 )
+
 

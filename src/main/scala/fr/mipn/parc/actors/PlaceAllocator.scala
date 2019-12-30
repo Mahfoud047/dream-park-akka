@@ -1,17 +1,21 @@
 package fr.mipn.parc.actors
 
 import akka.actor.{Actor, Props}
+import io.swagger.server.enums.PlaceStatus
 import io.swagger.server.model.{Error, Place, PlaceType}
 
 
 object PlaceAllocator {
 
+  val placeTypes = List(PlaceType(1, "voitures", "desc de type voitures"),
+    PlaceType(2, "velo", "desc de type velo"))
+
   var places: Map[Int, Place] = Map(
-    1 -> Place(1, "A", 0, PlaceType("voitures", "desc de type voitures")),
-    2 -> Place(2, "A", 0, PlaceType("voitures", "desc de type voitures")),
-    3 -> Place(3, "B", 0, PlaceType("voitures", "desc de type voitures")),
-    4 -> Place(4, "B", 0, PlaceType("lord", "desc de type lord")),
-    5 -> Place(5, "B", 0, PlaceType("velo", "desc de type velo"))
+    1 -> Place(1, "A", 1),
+    2 -> Place(2, "A", 1),
+    3 -> Place(3, "B", 2),
+    4 -> Place(4, "B", 2),
+    5 -> Place(5, "B", 2)
   ).withDefaultValue(null)
 
   case object GetFreePlaces
@@ -30,7 +34,7 @@ case class PlaceAllocator() extends Actor {
 
     case GetFreePlaces =>
       val freePlaces: List[Place] = places.filter({
-        case (_, place) => place.status == 0
+        case (_, place) => place.status == PlaceStatus.FREE
       }).values.toList
       sender ! Right(freePlaces)
 
@@ -44,7 +48,7 @@ case class PlaceAllocator() extends Actor {
       }
 
       // Update Status
-      places += (placeId -> place.copy(status = 1))
+      places += (placeId -> place.copy(status = PlaceStatus.TAKEN))
 
 
     case _@msg => sender ! s"I recieved the msg $msg"

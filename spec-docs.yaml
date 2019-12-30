@@ -102,8 +102,8 @@ paths:
             schema:
               $ref: '#/components/schemas/Reservation'
       responses:
-        204:
-          description: OK
+        201:
+          description: reservation added
         400:
           description: Bad Request
           content:
@@ -197,11 +197,6 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/Error'
-
-
-
-
-
 
 
 components:

@@ -11,9 +11,9 @@ import java.math.BigDecimal
  */
 case class PricingPlan (
   name: String,
-  pricePerHour: Int,
+  pricePerHour: Double,
   minNumberOfHours: Int,
   placeTypeIds: List[Int],
-  extraTimeFine: Int
+  extraTimeFine: Double
 )
 
