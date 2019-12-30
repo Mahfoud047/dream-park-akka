@@ -6,10 +6,12 @@ import spray.json.RootJsonFormat
 
 
 /**
- * @param name 
+ * @param id
+ * @param name
  * @param description 
  */
 case class PlaceType (
+  id: Int,
   name: String,
   description: String
 )

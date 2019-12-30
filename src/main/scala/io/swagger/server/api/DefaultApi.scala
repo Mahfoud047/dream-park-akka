@@ -18,21 +18,21 @@ class DefaultApi(
   import defaultMarshaller._
 
   lazy val route: Route =
-    path("places" / "free") {
+    path("place" / "free") {
       get {
         defaultService.placesFreeGet()
       }
     } ~
-      //      path("places") {
-      //        get {
-      //
-      //
-      //          defaultService.placesGet()
-      //
-      //
-      //        }
-      //      } ~
-      path("prices") {
+      path("place") {
+        get {
+
+
+          defaultService.placesGet()
+
+
+        }
+      } ~
+      path("pricing") {
         get {
 
 
@@ -40,44 +40,44 @@ class DefaultApi(
 
 
         }
-        //      } ~
-        //      path("reservation") { (idReservation) =>
-        //        delete {
-        //
-        //
-        //          defaultService.reservationIdReservationDelete(idReservation = idReservation)
-        //
-        //
-        //        }
-        //      } ~
-        //      path("reservation") { (idReservation) =>
-        //        get {
-        //
-        //
-        //          defaultService.reservationIdReservationGet(idReservation = idReservation)
-        //
-        //
-        //        }
-        //      } ~
-        //      path("reservation" / "settle") { (idReservation) =>
-        //        put {
-        //
-        //
-        //          defaultService.reservationIdReservationSettlePut(idReservation = idReservation)
-        //
-        //
-        //        }
-        //      } ~
-        //      path("reservation") {
-        //        post {
-        //          parameters("body".as[String]) { (body) =>
-        //
-        //
-        //            defaultService.reservationPost(body = body)
-        //
-        //
-        //          }
-        //        }
+      } ~
+      path("reservation") { (idReservation) =>
+        delete {
+
+
+          defaultService.reservationIdReservationDelete(idReservation = idReservation)
+
+
+        }
+      } ~
+      path("reservation") { (idReservation) =>
+        get {
+
+
+          defaultService.reservationIdReservationGet(idReservation = idReservation)
+
+
+        }
+      } ~
+      path("reservation" / "settle") { (idReservation) =>
+        put {
+
+
+          defaultService.reservationIdReservationSettlePut(idReservation = idReservation)
+
+
+        }
+      } ~
+      path("reservation") {
+        post {
+          parameters("body".as[String]) { (body) =>
+
+
+            defaultService.reservationPost(body = body)
+
+
+          }
+        }
       }
 }
 
@@ -90,7 +90,7 @@ trait DefaultApiService {
     complete((422, responseError))
 
   /**
-   * Code: 200, Message: List of availlable places, DataType: List[Place]
+   * Code: 200, Message: List of available places, DataType: List[Place]
    * Code: 422, Message: Unexpected error, DataType: Error
    */
   def placesFreeGet()

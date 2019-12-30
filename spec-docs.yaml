@@ -1,0 +1,328 @@
+openapi: 3.0.1
+
+info:
+  title: Sample API
+  description: API description in Markdown.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080/api
+paths:
+  /place/free:
+    get:
+      summary: List of availlable places
+      description: Get Free Places
+      responses:
+        200:
+          description: List of places
+          content:
+            '*/*':
+              schema:
+                type:
+                  array
+                items:
+                  $ref: '#/components/schemas/Place'
+        422:
+          description: Unexpected error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /place:
+    get:
+      summary: List of all places
+      description: Get list of all places
+      responses:
+        200:
+          description: List of places
+          content:
+            '*/*':
+              schema:
+                type:
+                  array
+                items:
+                  $ref: '#/components/schemas/Place'
+        422:
+          description: Unexpected error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /pricing:
+    get:
+      summary: List of possible pricings
+      description: Get list of possible pricings
+      responses:
+        200:
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type:
+                  array
+                items:
+                  $ref: '#/components/schemas/PricingPlan'
+        422:
+          description: Unexpected error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Error'
+
+
+  /reservation:
+    get:
+      summary: get all reservations
+      description: get all reservations of a user
+      responses:
+        200:
+          description: a reservation object
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Reservation'
+        422:
+          description: Unexpected error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      summary: add new reservation
+      description: reserve a place
+      requestBody:
+        description: Reservation object that needs to be added
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Reservation'
+      responses:
+        204:
+          description: OK
+        400:
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Error'
+        422:
+          description: Unexpected error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Error'
+
+
+  /reservation/{reservationId}:
+    get:
+      summary: get reservation by id
+      description: get reservation by id
+      parameters:
+        - name: reservationId
+          in: path
+          description: "ID of reservation"
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: a reservation object
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Reservation'
+        422:
+          description: Unexpected error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Error'
+
+
+    delete:
+      summary: cancel reservation by id
+      description: cancel reservation by id
+      parameters:
+        - name: reservationId
+          in: path
+          description: "ID of reservation"
+          required: true
+          schema:
+            type: integer
+      responses:
+        204:
+          description: OK
+        422:
+          description: Unexpected error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Error'
+
+
+
+
+
+  /reservation/{reservationId}/settle:
+    put:
+      summary: get reservation by id
+      description: get reservation by id
+      parameters:
+        - name: reservationId
+          in: path
+          description: "ID of reservation"
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        $ref: '#/components/requestBodies/PaymentBody'
+
+      responses:
+        204:
+          description: OK
+        400:
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Error'
+        422:
+          description: Unexpected error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Error'
+
+
+
+
+
+
+
+components:
+  schemas:
+    Place:
+      required:
+        - id
+        - zone
+        - status
+        - placeType
+      properties:
+        id:
+          type: integer
+        zone:
+          type: string
+        status:
+          type: string
+          enum:
+            - "free"
+            - "taken"
+            - "unavailable"
+          default:
+            - "free"
+        placeTypeId:
+          type:
+            integer
+
+    PlaceType:
+      required:
+        - id
+        - name
+        - description
+      properties:
+        id:
+          type:
+            integer
+        name:
+          type:
+            string
+        description:
+          type:
+            string
+
+    PricingPlan:
+      required:
+        - name
+        - pricePerHour
+        - minNumberOfHours
+        - placeTypes
+        - extraTimeFine
+      properties:
+        name:
+          type:
+            string
+        pricePerHour:
+          type:
+            number
+        minNumberOfHours:
+          type:
+            integer
+        placeTypeIds:
+          type:
+            array
+          items:
+            type: integer
+        extraTimeFine:
+          type:
+            number
+
+
+    Reservation:
+      required:
+        - id
+        - placeId
+        - startTime
+        - pricingPlanName
+      properties:
+        id:
+          type:
+            integer
+        placeId:
+          type:
+            integer
+        startTime:
+          type:
+            string
+          example:
+            "2014-08-17T14:07"
+        endTime:
+          type:
+            string
+          example:
+            "2014-08-17T16:07"
+        pricingPlanName:
+          type:
+            string
+        licensePlate:
+          type:
+            string
+
+    Error:
+      required:
+        - message
+      properties:
+        message:
+          type:
+            string
+
+  requestBodies:
+    PaymentBody:
+      description: A JSON object containing payment information
+      required: true
+      content:
+        application/json:
+          schema:
+            required:
+              - amount
+            properties:
+              amount:
+                type:
+                  number
+
+
+
