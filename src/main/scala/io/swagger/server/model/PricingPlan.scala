@@ -1,20 +1,19 @@
 package io.swagger.server.model
 
-import scala.concurrent.duration.TimeUnit
-
+import java.math.BigDecimal
 
 /**
- * @param name
- * @param pricePerHour
- * @param minNumberOfHours
- * @param placeTypes
- * @param extraTimeFine    when exceeding the end Time of reservation, fine per hour
+ * @param name 
+ * @param pricePerHour 
+ * @param minNumberOfHours 
+ * @param placeTypeIds 
+ * @param extraTimeFine 
  */
 case class PricingPlan (
   name: String,
-  pricePerHour: Double,
+  pricePerHour: Int,
   minNumberOfHours: Int,
-  placeTypes: List[PlaceType],
-  extraTimeFine: Double
+  placeTypeIds: List[Int],
+  extraTimeFine: Int
 )
 

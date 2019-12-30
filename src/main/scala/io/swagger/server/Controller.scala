@@ -12,5 +12,5 @@ class Controller(default: DefaultApi)(implicit system: ActorSystem, materializer
 
     lazy val routes: Route = default.route 
 
-    Http().bindAndHandle(routes, "0.0.0.0", 8888)
+    Http().bindAndHandle(routes, "0.0.0.0", 9000)
 }
