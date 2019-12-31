@@ -2,25 +2,41 @@ package io.swagger.server.utils
 
 import java.io.{BufferedWriter, File, FileWriter}
 
+import io.swagger.server.model.Error
 import spray.json._
 
 import scala.io.Source
 
 object FileHelpers extends DefaultJsonProtocol {
 
-  val RESERVATIONS_PATH = "data/reservations.json"
+  val RESERVATIONS_FILE_PATH = "data/reservations.json"
 
   /**
-   * write a `String` to the `filename`.
+   * write a `Object: T` to the `filename`.
    */
-  def writeFile(filename: String, s: String): Unit = {
+  def writeData[T](filename: String, data: T)(formatProtocol: {val format: JsonWriter[T]}): Option[Throwable] = {
     val file = new File(filename)
     val bw = new BufferedWriter(new FileWriter(file))
-    bw.write(s)
-    bw.close()
+
+    try {
+      val json: String = data.toJson(formatProtocol.format).toString
+
+      bw.write(json)
+      bw.close()
+
+      None
+    } catch {
+      case err: Throwable => Some(err)
+    } finally {
+      bw.close()
+    }
+
   }
 
 
+  /**
+   * write a `Object: T` to the `filename`.
+   */
   def readData[T](fileName: String)(formatProtocol: {val format: JsonReader[T]}): Option[T] = {
 
     val stream = Source.fromFile(fileName)
@@ -34,10 +50,11 @@ object FileHelpers extends DefaultJsonProtocol {
       Some(parsed)
 
     } catch {
-      case _: Throwable => None
+      case err: Throwable => None
     } finally {
       stream.close()
     }
+
 
   }
 

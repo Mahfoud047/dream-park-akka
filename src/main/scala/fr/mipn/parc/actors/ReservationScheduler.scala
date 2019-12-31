@@ -16,12 +16,12 @@ import scala.concurrent.duration._
 
 object ReservationScheduler {
 
-  var lastId: Int = 0;
-  var reservations: Map[Int, Reservation] = Map(
-    // empty
-  ).withDefaultValue(null)
+  //  var lastId: Int = 0;
+  //  var reservations: Map[Int, Reservation] = Map(
+  //    // empty
+  //  ).withDefaultValue(null)
 
-  case class ReservePlace(reservation: PostReservation)
+  case class ReservePlace(reservationRequest: PostReservation)
 
   case object GetAllReservations
 
@@ -30,17 +30,21 @@ object ReservationScheduler {
 
 }
 
-case class ReservationScheduler(feeCalculator: ActorRef, placeAllocator: ActorRef) extends Actor with  ActorLogging{
+case class ReservationScheduler(feeCalculator: ActorRef, placeAllocator: ActorRef) extends Actor with ActorLogging {
 
   import ReservationScheduler._
 
   implicit val timeout = new Timeout(2 seconds)
   implicit val executionContext = this.context.system.dispatcher
 
+  object reservationJsonFormatProtocol extends DefaultJsonProtocol {
+    implicit val format = listFormat(jsonFormat7(Reservation))
+  }
+
   override def receive: Receive = {
     case reservePlace: ReservePlace =>
       // check pricing
-      (feeCalculator ? FeeCalculator.CheckPricingExists(reservePlace.reservation.pricingPlanName))
+      (feeCalculator ? FeeCalculator.CheckPricingExists(reservePlace.reservationRequest.pricingPlanName))
         .mapTo[EitherCheckPricingExists]
         .map {
           case Left(err) => sender ! Left(err) // if error return it directly
@@ -48,34 +52,43 @@ case class ReservationScheduler(feeCalculator: ActorRef, placeAllocator: ActorRe
         }
 
       // allocate place
-      (placeAllocator ? PlaceAllocator.AllocatePlace(reservePlace.reservation.placeId))
+      (placeAllocator ? PlaceAllocator.AllocatePlace(reservePlace.reservationRequest.placeId))
         .mapTo[OptionAllocatePlace]
         .map {
           case Some(err) => sender ! Left(err)
         }
 
-      lastId += 1
-      reservations += (lastId -> reservePlace.reservation.toReservation(id = lastId))
+      FileHelpers.readData(
+        FileHelpers.RESERVATIONS_FILE_PATH
+      )(reservationJsonFormatProtocol) match {
+        case None => sender ! Left(Error("Internal Error"))
 
-      sender ! Right(Ok)
+        case Some(reservations) =>
+          val lastId: Int = if (reservations.isEmpty) 1 else reservations.last.id + 1
 
+          val newReservation = reservePlace.reservationRequest.toReservation(id = lastId)
+
+          val finalData = reservations :+ newReservation
+
+          FileHelpers.writeData(FileHelpers.RESERVATIONS_FILE_PATH, finalData)(reservationJsonFormatProtocol)
+          match {
+            case Some(err) => sender ! Error("Internal Error")
+            case None => sender ! Right(Ok)
+          }
+
+      }
 
 
     case GetAllReservations =>
-      log.info("recieved GetAllReservations")
 
+      FileHelpers.readData(
+        FileHelpers.RESERVATIONS_FILE_PATH
+      )(reservationJsonFormatProtocol) match {
 
-      object reservationJsonFormatProtocol extends DefaultJsonProtocol {
-        implicit val format = listFormat(jsonFormat7(Reservation))
-      }
+        case None => sender ! Left(Error("Internal Error"))
 
-      val reservations = FileHelpers.readData(
-        FileHelpers.RESERVATIONS_PATH
-      )(reservationJsonFormatProtocol)
+        case Some(reservations) => sender ! Right(reservations)
 
-      reservations match {
-        case None =>  sender ! Left(Error("error"))
-        case Some(value) => sender ! Right(value)
       }
 
     case _@msg => sender ! s"I recieved the msg $msg"

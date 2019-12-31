@@ -1,10 +1,1 @@
-[
-  {
-    "id": 1,
-    "placeId": 1,
-    "startTime": "2014-08-17 14:07",
-    "endTime": "2014-08-17 16:07",
-    "pricingPlanName": "Starter",
-    "licensePlate": "160101000"
-  }
-]
+[{"endTime":"2014-08-17 16:07","id":1,"licensePlate":"160101000","placeId":2,"pricingPlanName":"Starter","startTime":"2014-08-17 14:07"},{"endTime":"2014-08-17 16:07","id":2,"licensePlate":"160101000","placeId":2,"pricingPlanName":"Starter","startTime":"2014-08-17 14:07"},{"endTime":"2014-08-17 16:07","id":3,"licensePlate":"160101000","placeId":2,"pricingPlanName":"Starter","startTime":"2014-08-17 14:07"}]
