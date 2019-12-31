@@ -141,7 +141,7 @@ trait DefaultApiService {
     complete((422, responseError))
 
   /**
-   * Code: 200, Message: a reservation object, DataType: List[Reservation]
+   * Code: 200, Message: a list of reservation object, DataType: List[Reservation]
    * Code: 422, Message: Unexpected error, DataType: Error
    */
   def reservationGet()

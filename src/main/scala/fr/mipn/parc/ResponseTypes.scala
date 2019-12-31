@@ -9,4 +9,5 @@ object ResponseTypes {
   type EitherCheckPricingExists = Either[Error, Boolean]
 
   type EitherPostReservation= Either[Error, Nothing]
+  type EitherArrayReservation = Either[Error, List[Reservation]]
 }

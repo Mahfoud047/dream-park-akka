@@ -6,7 +6,6 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.marshalling.ToEntityMarshaller
 import akka.http.scaladsl.server.Directives.{complete, pathPrefix}
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.unmarshalling.FromRequestUnmarshaller
 import akka.stream.ActorMaterializer
 import fr.mipn.parc.ParkSystem
 import io.swagger.server.api.{DefaultApi, DefaultApiMarshaller, DefaultApiService}
@@ -44,7 +43,7 @@ object DreamParkApp extends App {
 
     override implicit def toEntityMarshallerReservation: ToEntityMarshaller[Reservation] = jsonFormat7(Reservation)
 
-    implicit val reservationFormat: RootJsonFormat[PostReservation] =  jsonFormat6(PostReservation)
+    implicit val reservationFormat: RootJsonFormat[PostReservation] = jsonFormat6(PostReservation)
 
     override implicit def fromRequestUnmarshallerPayment: RootJsonFormat[Payment] = jsonFormat1(Payment)
 
@@ -98,7 +97,20 @@ object DreamParkApp extends App {
      * Code: 200, Message: a reservation object, DataType: List[Reservation]
      * Code: 422, Message: Unexpected error, DataType: Error
      */
-    override def reservationGet()(implicit toEntityMarshallerReservationarray: ToEntityMarshaller[List[Reservation]], toEntityMarshallerError: ToEntityMarshaller[Error]): Route = ???
+    override def reservationGet()(implicit toEntityMarshallerReservationarray: ToEntityMarshaller[List[Reservation]], toEntityMarshallerError: ToEntityMarshaller[Error]): Route = {
+
+      val response = (parkSystem.reservationScheduler ? ReservationScheduler.GetAllReservations).mapTo[EitherArrayReservation]
+
+      requestcontext => {
+        response.flatMap {
+          case Right(reservations)
+          => reservationGet200(reservations)(toEntityMarshallerReservationarray)(requestcontext)
+          case Left(err: Error)
+          => reservationGet422(err)(toEntityMarshallerError)(requestcontext)
+        }
+      }
+
+    }
 
     /**
      * Code: 204, Message: OK
@@ -125,37 +137,38 @@ object DreamParkApp extends App {
      * Code: 422, Message: Unexpected error, DataType: Error
      */
     override def reservationPost(body: PostReservation)
-                       (implicit toEntityMarshallerError: ToEntityMarshaller[Error]): Route = {
+                                (implicit toEntityMarshallerError: ToEntityMarshaller[Error]): Route = {
 
       val response = (parkSystem.reservationScheduler ? ReservationScheduler.ReservePlace(body)).mapTo[EitherPostReservation]
 
 
-      requestcontext => reservationPost201(requestcontext)
-//        response.flatMap {
-//          case Right(_)
-//          => reservationPost201(requestcontext)
-//          case Left(Error("bad input"))
-//          => reservationPost400(Error("bad input"))(toEntityMarshallerError)(requestcontext)
-//          case Left(err: Error)
-//          => reservationPost422(err)(toEntityMarshallerError)(requestcontext)
-//        }
+      requestcontext => {
+        response.flatMap {
+          case Right(_)
+          => reservationPost201(requestcontext)
+          case Left(Error("bad input"))
+          => reservationPost400(Error("bad input"))(toEntityMarshallerError)(requestcontext)
+          case Left(err: Error)
+          => reservationPost422(err)(toEntityMarshallerError)(requestcontext)
+        }
+      }
     }
   }
 
 
-    // Start the API
-    val api = new DefaultApi(DefaultService, DefaultMarshaller)
+  // Start the API
+  val api = new DefaultApi(DefaultService, DefaultMarshaller)
 
-    val host = "localhost"
-    val port = 8888
+  val host = "localhost"
+  val port = 8888
 
-    val bindingFuture = Http().bindAndHandle(pathPrefix("api") {
-      api.route
-    }, host, port)
-    println(s"Server online at http://${
-      host
-    }:${
-      port
-    }/\nPress RETURN to stop...")
+  val bindingFuture = Http().bindAndHandle(pathPrefix("api") {
+    api.route
+  }, host, port)
+  println(s"Server online at http://${
+    host
+  }:${
+    port
+  }/\nPress RETURN to stop...")
 
-  }
+}
