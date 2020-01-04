@@ -1,6 +1,6 @@
 package fr.mipn.parc.actors
 
-import akka.actor.{Actor, Props}
+import akka.actor.{Actor, ActorLogging, Props}
 import io.swagger.server.enums.PlaceStatus
 import io.swagger.server.model.{Error, Place, PlaceType}
 
@@ -26,7 +26,7 @@ object PlaceAllocator {
 }
 
 
-case class PlaceAllocator() extends Actor {
+case class PlaceAllocator() extends Actor with ActorLogging {
 
   import PlaceAllocator._
 
@@ -38,17 +38,19 @@ case class PlaceAllocator() extends Actor {
       }).values.toList
       sender ! Right(freePlaces)
 
+
     case allocatePlace: AllocatePlace =>
 
       // Check if the place exists
       val placeId = allocatePlace.placeId
       val place: Place = places(placeId)
-      if(place == null){
-        sender ! Error("Place not found")
+      if (place == null) {
+        sender ! Some(Error("Place not found"))
+      } else {
+        // Update Status
+        places += (placeId -> place.copy(status = PlaceStatus.TAKEN))
+        sender ! None
       }
-
-      // Update Status
-      places += (placeId -> place.copy(status = PlaceStatus.TAKEN))
 
 
     case _@msg => sender ! s"I recieved the msg $msg"
