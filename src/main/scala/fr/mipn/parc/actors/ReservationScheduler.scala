@@ -8,8 +8,7 @@ import akka.util.Timeout
 import fr.mipn.parc.ResponseTypes.{EitherCheckPricingExists, OptionAllocatePlace}
 import io.swagger.server.input_model.PostReservation
 import io.swagger.server.utils.FileHelpers
-import io.swagger.server.utils.FileHelpers.jsonFormat7
-import spray.json.{DefaultJsonProtocol, RootJsonFormat}
+import spray.json.{DefaultJsonProtocol}
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -28,6 +27,8 @@ object ReservationScheduler {
                                               existsPricing: EitherCheckPricingExists,
                                               placeAllocated: OptionAllocatePlace
                                             )
+
+  case class CancelReservation(idReservation: Int)
 
 
   case object GetAllReservations
@@ -48,14 +49,51 @@ case class ReservationScheduler(feeCalculator: ActorRef, placeAllocator: ActorRe
     implicit val format = listFormat(jsonFormat7(Reservation))
   }
 
+  /**
+   *
+   * @param callback
+   * @param sender
+   */
+  def getAllReservations(sender: ActorRef, callback: (List[Reservation]) => Unit): Unit = {
+    FileHelpers.readData(
+      FileHelpers.RESERVATIONS_FILE_PATH
+    )(reservationJsonFormatProtocol) match {
+      case None => sender ! Left(Error("Internal Error"))
+
+      case Some(reservations) => callback(reservations)
+    }
+  }
+
+
+  /**
+   *
+   * @param sender
+   * @param content
+   */
+  def saveReservations(sender: ActorRef,
+                       content: List[Reservation],
+                       callback: () => Unit
+                      ): Unit = {
+    FileHelpers.writeData(
+      FileHelpers.RESERVATIONS_FILE_PATH,
+      content
+    )(reservationJsonFormatProtocol) match {
+      case Some(err) => sender ! Some(Error("Internal Error"))
+      case None => callback()
+    }
+  }
+
   override def receive: Receive = {
+    /**
+     * *********
+     */
     case reservePlace: ReservePlace =>
 
       val pricingName = reservePlace.reservationRequest.pricingPlanName
       val placeId = reservePlace.reservationRequest.placeId
 
-      val checkPricingExistsFuture : Future[EitherCheckPricingExists] = (feeCalculator ? FeeCalculator.CheckPricingExists(pricingName)).mapTo[EitherCheckPricingExists]
-      val allocatePlaceFuture : Future[OptionAllocatePlace] = (placeAllocator ? PlaceAllocator.AllocatePlace(placeId)).mapTo[OptionAllocatePlace]
+      val checkPricingExistsFuture: Future[EitherCheckPricingExists] = (feeCalculator ? FeeCalculator.CheckPricingExists(pricingName)).mapTo[EitherCheckPricingExists]
+      val allocatePlaceFuture: Future[OptionAllocatePlace] = (placeAllocator ? PlaceAllocator.AllocatePlace(placeId)).mapTo[OptionAllocatePlace]
 
       for {
         checkPricingExistsResult <- checkPricingExistsFuture
@@ -71,12 +109,9 @@ case class ReservationScheduler(feeCalculator: ActorRef, placeAllocator: ActorRe
       }
 
 
-      FileHelpers.readData(
-        FileHelpers.RESERVATIONS_FILE_PATH
-      )(reservationJsonFormatProtocol) match {
-        case None => sender ! Left(Error("Internal Error"))
-
-        case Some(reservations) =>
+      getAllReservations(
+        sender,
+        (reservations: List[Reservation]) => {
           val lastId: Int = if (reservations.isEmpty) 1 else reservations.last.id + 1
 
           val newReservation = reservePlace.reservationRequest.toReservation(id = lastId)
@@ -88,21 +123,53 @@ case class ReservationScheduler(feeCalculator: ActorRef, placeAllocator: ActorRe
             case Some(err) => sender ! Error("Internal Error")
             case None => sender ! Right(Ok)
           }
+        })
 
-      }
-
-
+    /**
+     * *********
+     */
     case GetAllReservations =>
 
-      FileHelpers.readData(
-        FileHelpers.RESERVATIONS_FILE_PATH
-      )(reservationJsonFormatProtocol) match {
+      getAllReservations(
+        sender,
+        (reservations: List[Reservation]) => {
+          sender ! Right(reservations)
+        }
+      )
 
-        case None => sender ! Left(Error("Internal Error"))
+    /**
+     * *********
+     */
 
-        case Some(reservations) => sender ! Right(reservations)
+    case cancelReservation: CancelReservation =>
+      getAllReservations(
+        sender,
+        (reservations: List[Reservation]) => {
+          // get Place Id
+          val reservation = reservations.find(r => r.id == cancelReservation.idReservation).orNull
 
-      }
+          if (reservation == null) {
+            sender ! Some(Error("reservation not found"))
+          }
+
+          // Set Place Free
+          (placeAllocator ? PlaceAllocator.FreePlace(reservation.placeId))
+            .mapTo[OptionAllocatePlace]
+            .map {
+              case Some(err) => sender ! Some(err)
+            }
+
+          //Delete Reservation
+          val newReservations = reservations.filter(_.id != reservation.id)
+          saveReservations(sender, newReservations, () => sender ! None)
+
+        }
+      )
+
+
+    /**
+     * *********
+     */
 
     case _@msg => sender ! s"I recieved the msg $msg"
   }

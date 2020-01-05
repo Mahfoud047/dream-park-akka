@@ -116,7 +116,19 @@ object DreamParkApp extends App {
      * Code: 204, Message: OK
      * Code: 422, Message: Unexpected error, DataType: Error
      */
-    override def reservationReservationIdDelete(reservationId: Int)(implicit toEntityMarshallerError: ToEntityMarshaller[Error]): Route = ???
+    override def reservationReservationIdDelete(reservationId: Int)(implicit toEntityMarshallerError: ToEntityMarshaller[Error]): Route = {
+
+      val response = (parkSystem.reservationScheduler ? ReservationScheduler.CancelReservation(reservationId)).mapTo[OptionFreePlace]
+
+      requestcontext => {
+        response.flatMap {
+          case None
+          => reservationReservationIdDelete204(requestcontext)
+          case Some(err: Error)
+          => reservationReservationIdDelete422(err)(toEntityMarshallerError)(requestcontext)
+        }
+      }
+    }
 
     /**
      * Code: 200, Message: a reservation object, DataType: Reservation
@@ -141,13 +153,12 @@ object DreamParkApp extends App {
 
       val response = (parkSystem.reservationScheduler ? ReservationScheduler.ReservePlace(body)).mapTo[EitherPostReservation]
 
-
       requestcontext => {
         response.flatMap {
           case Right(_)
           => reservationPost201(requestcontext)
-          case Left(Error("bad input"))
-          => reservationPost400(Error("bad input"))(toEntityMarshallerError)(requestcontext)
+          case Left(Error("Bad input"))
+          => reservationPost400(Error("Bad input"))(toEntityMarshallerError)(requestcontext)
           case Left(err: Error)
           => reservationPost422(err)(toEntityMarshallerError)(requestcontext)
         }

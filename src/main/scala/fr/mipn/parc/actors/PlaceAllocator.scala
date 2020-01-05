@@ -1,7 +1,8 @@
 package fr.mipn.parc.actors
 
-import akka.actor.{Actor, ActorLogging, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import io.swagger.server.enums.PlaceStatus
+import io.swagger.server.enums.PlaceStatus.PlaceStatus
 import io.swagger.server.model.{Error, Place, PlaceType}
 
 
@@ -22,6 +23,8 @@ object PlaceAllocator {
 
   case class AllocatePlace(placeId: Int)
 
+  case class FreePlace(placeId: Int)
+
   def apply(): Props = Props(new PlaceAllocator())
 }
 
@@ -29,6 +32,22 @@ object PlaceAllocator {
 case class PlaceAllocator() extends Actor with ActorLogging {
 
   import PlaceAllocator._
+
+  def getPlace(idPlace: Int): Option[Place] = {
+    // Check if the place exists
+    val place: Place = places(idPlace)
+    Option(place)
+  }
+
+  def updatePlaceStatus(sender: ActorRef, placeId: Int, newStatus: PlaceStatus): Unit = {
+    getPlace(placeId) match {
+      case None => sender ! Some(Error("Place not found"))
+      case Some(place) =>
+        // Update Status
+        places += (placeId -> place.copy(status = newStatus))
+        sender ! None
+    }
+  }
 
   override def receive: Receive = {
 
@@ -40,18 +59,10 @@ case class PlaceAllocator() extends Actor with ActorLogging {
 
 
     case allocatePlace: AllocatePlace =>
+      updatePlaceStatus(sender, allocatePlace.placeId, PlaceStatus.TAKEN)
 
-      // Check if the place exists
-      val placeId = allocatePlace.placeId
-      val place: Place = places(placeId)
-      if (place == null) {
-        sender ! Some(Error("Place not found"))
-      } else {
-        // Update Status
-        places += (placeId -> place.copy(status = PlaceStatus.TAKEN))
-        sender ! None
-      }
-
+    case freePlace: FreePlace =>
+      updatePlaceStatus(sender, freePlace.placeId, PlaceStatus.FREE)
 
     case _@msg => sender ! s"I recieved the msg $msg"
   }
