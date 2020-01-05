@@ -2,13 +2,15 @@ package fr.mipn.parc.actors
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.http.scaladsl.model.HttpHeader.ParsingResult.Ok
-import io.swagger.server.model.{Error, Reservation}
+import io.swagger.server.model.{Error, Payment, Reservation, SettleReservationResponse}
 import akka.pattern.ask
 import akka.util.Timeout
-import fr.mipn.parc.ResponseTypes.{EitherCheckPricingExists, OptionAllocatePlace}
+import fr.mipn.parc.ResponseTypes.{EitherCheckPricingExists, OptionAllocatePlace, OptionCalculateFee}
 import io.swagger.server.input_model.PostReservation
-import io.swagger.server.utils.FileHelpers
-import spray.json.{DefaultJsonProtocol}
+import io.swagger.server.utils.{DateFormatter, FileHelpers}
+import org.joda.time.DateTime
+import spray.json.DefaultJsonProtocol
+import DateFormatter.formatDate
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -29,6 +31,8 @@ object ReservationScheduler {
                                             )
 
   case class CancelReservation(idReservation: Int)
+
+  case class SettleReservation(payment: Payment, reservationId: Int)
 
 
   case object GetAllReservations
@@ -67,6 +71,21 @@ case class ReservationScheduler(feeCalculator: ActorRef, placeAllocator: ActorRe
 
   /**
    *
+   * @param idReservation
+   * @return
+   */
+  def getReservationById(idReservation: Int): Option[Reservation] = {
+    FileHelpers.readData(
+      FileHelpers.RESERVATIONS_FILE_PATH
+    )(reservationJsonFormatProtocol) match {
+      case None => None
+      case Some(reservations) => reservations.find(r => r.id == idReservation)
+    }
+  }
+
+
+  /**
+   *
    * @param sender
    * @param content
    */
@@ -79,8 +98,39 @@ case class ReservationScheduler(feeCalculator: ActorRef, placeAllocator: ActorRe
       content
     )(reservationJsonFormatProtocol) match {
       case Some(err) => sender ! Some(Error("Internal Error"))
-      case None => callback()
+      case None => if(callback != null) callback()
     }
+  }
+
+  /**
+   *
+   * @return
+   */
+  def setPlaceFree(sender: ActorRef, placeId: Int) = {
+    (placeAllocator ? PlaceAllocator.FreePlace(placeId))
+      .mapTo[OptionAllocatePlace]
+      .map {
+        case Some(err) => sender ! Some(err)
+      }
+  }
+
+  def updateReservation(sender: ActorRef, newReservation : Reservation) = {
+    getAllReservations(
+      sender,
+      (reservations: List[Reservation]) => {
+        // get Reservation by Id
+        val reservation = reservations.find(r => r.id == newReservation.id).orNull
+
+        if (reservation == null) {
+          sender ! Some(Error("reservation not found"))
+        }
+
+        //Save Reservation
+        val newReservations = reservations.map((r => if (r.id == newReservation.id) newReservation else r))
+        saveReservations(sender, newReservations, null)
+
+      }
+    )
   }
 
   override def receive: Receive = {
@@ -88,6 +138,7 @@ case class ReservationScheduler(feeCalculator: ActorRef, placeAllocator: ActorRe
      * *********
      */
     case reservePlace: ReservePlace =>
+      val client: ActorRef = sender
 
       val pricingName = reservePlace.reservationRequest.pricingPlanName
       val placeId = reservePlace.reservationRequest.placeId
@@ -100,17 +151,17 @@ case class ReservationScheduler(feeCalculator: ActorRef, placeAllocator: ActorRe
         allocatePlaceResult <- allocatePlaceFuture
       } yield {
         checkPricingExistsResult match {
-          case Left(err) => sender ! Left(err) // if error return it directly
-          case Right(false) => sender ! Left(Error("Bad input")) // if not found
+          case Left(err) => client ! Left(err) // if error return it directly
+          case Right(false) => client ! Left(Error("Bad input")) // if not found
         }
         allocatePlaceResult match {
-          case Some(err) => sender ! Left(err)
+          case Some(err) => client ! Left(err)
         }
       }
 
 
       getAllReservations(
-        sender,
+        client,
         (reservations: List[Reservation]) => {
           val lastId: Int = if (reservations.isEmpty) 1 else reservations.last.id + 1
 
@@ -120,8 +171,8 @@ case class ReservationScheduler(feeCalculator: ActorRef, placeAllocator: ActorRe
 
           FileHelpers.writeData(FileHelpers.RESERVATIONS_FILE_PATH, finalData)(reservationJsonFormatProtocol)
           match {
-            case Some(err) => sender ! Error("Internal Error")
-            case None => sender ! Right(Ok)
+            case Some(err) => client ! Error("Internal Error")
+            case None => client ! Right(Ok)
           }
         })
 
@@ -142,29 +193,71 @@ case class ReservationScheduler(feeCalculator: ActorRef, placeAllocator: ActorRe
      */
 
     case cancelReservation: CancelReservation =>
+      val client: ActorRef = sender
+
       getAllReservations(
-        sender,
+        client,
         (reservations: List[Reservation]) => {
           // get Place Id
           val reservation = reservations.find(r => r.id == cancelReservation.idReservation).orNull
 
           if (reservation == null) {
-            sender ! Some(Error("reservation not found"))
+            client ! Some(Error("reservation not found"))
           }
 
           // Set Place Free
-          (placeAllocator ? PlaceAllocator.FreePlace(reservation.placeId))
-            .mapTo[OptionAllocatePlace]
-            .map {
-              case Some(err) => sender ! Some(err)
-            }
+          setPlaceFree(client, reservation.placeId)
 
           //Delete Reservation
           val newReservations = reservations.filter(_.id != reservation.id)
-          saveReservations(sender, newReservations, () => sender ! None)
+          saveReservations(client, newReservations, () => client ! None)
 
         }
       )
+
+
+    /**
+     * *********
+     */
+
+    case settleReservation: SettleReservation =>
+
+      val client: ActorRef = sender
+
+      // get the reservaton
+      val reservation = getReservationById(settleReservation.reservationId).orNull
+
+      if (reservation == null) {
+        client ! Left(Error("reservation not found"))
+      }
+
+      val startT = DateFormatter.parseDate(reservation.startTime).orNull
+      if (startT == null) {
+        client ! Left(Error("invalid date"))
+      }
+
+
+      // calculate duration of reservation
+      (feeCalculator ? FeeCalculator.CalculateFee(startT, reservation.pricingPlanName)).mapTo[OptionCalculateFee]
+        .map {
+          case None => client ! Left(Error)
+          case Some(fee) =>
+            // check wallet
+            val wallet = settleReservation.payment.wallet
+            if (wallet < fee) {
+              client ! Left(Error("wallet not enough"))
+            }
+            // setPlace Free
+            setPlaceFree(client, reservation.placeId)
+
+            //update reservation date
+            val now = DateTime.now()
+            val newReservation = reservation.copy(endTime = formatDate(now))
+            updateReservation(client, newReservation)
+
+            // return fee
+            client ! Right(SettleReservationResponse(fee, wallet - fee))
+        }
 
 
     /**

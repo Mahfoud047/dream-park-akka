@@ -9,7 +9,7 @@ import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import fr.mipn.parc.ParkSystem
 import io.swagger.server.api.{DefaultApi, DefaultApiMarshaller, DefaultApiService}
-import io.swagger.server.model.{Error, Payment, Place, PricingPlan, Reservation}
+import io.swagger.server.model.{Error, Payment, Place, PricingPlan, Reservation, SettleReservationResponse}
 import akka.pattern.ask
 import akka.util.Timeout
 
@@ -48,6 +48,8 @@ object DreamParkApp extends App {
     override implicit def fromRequestUnmarshallerPayment: RootJsonFormat[Payment] = jsonFormat1(Payment)
 
     override implicit def toEntityMarshallerReservationarray: ToEntityMarshaller[List[Reservation]] = listFormat(jsonFormat7(Reservation))
+
+    override implicit def toEntityMarshallerSettleReservationResponse: ToEntityMarshaller[SettleReservationResponse] = jsonFormat2(SettleReservationResponse)
   }
 
 
@@ -141,7 +143,24 @@ object DreamParkApp extends App {
      * Code: 400, Message: Bad Request, DataType: Error
      * Code: 422, Message: Unexpected error, DataType: Error
      */
-    override def reservationReservationIdSettlePut(body: Payment, reservationId: Int)(implicit toEntityMarshallerBody: ToEntityMarshaller[Payment], toEntityMarshallerError: ToEntityMarshaller[Error]): Route = ???
+    override def reservationReservationIdSettlePut(body: Payment, reservationId: Int)
+              (implicit toEntityMarshallerBody: ToEntityMarshaller[Payment],
+               toEntityMarshallerSettleReservationResponse: ToEntityMarshaller[SettleReservationResponse],
+               toEntityMarshallerError: ToEntityMarshaller[Error]): Route = {
+      val response = (parkSystem.reservationScheduler ? ReservationScheduler.SettleReservation(body, reservationId))
+        .mapTo[EitherSettleReservation]
+
+      requestcontext => {
+        response.flatMap {
+          case Right(settleResponse)
+          => reservationReservationIdSettlePut200(settleResponse)(toEntityMarshallerSettleReservationResponse)(requestcontext)
+          case Left(Error("Bad input"))
+          => reservationReservationIdSettlePut400(Error("Bad input"))(toEntityMarshallerError)(requestcontext)
+          case Left(err: Error)
+          => reservationReservationIdSettlePut422(err)(toEntityMarshallerError)(requestcontext)
+        }
+      }
+    }
 
     /**
      * Code: 204, Message: OK

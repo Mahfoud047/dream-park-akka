@@ -5,7 +5,7 @@ import akka.http.scaladsl.marshalling.ToEntityMarshaller
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.server.Route
 import io.swagger.server.input_model.PostReservation
-import io.swagger.server.model.{Error, Payment, Place, PricingPlan, Reservation}
+import io.swagger.server.model.{Error, Payment, Place, PricingPlan, Reservation, SettleReservationResponse}
 import spray.json.RootJsonFormat
 
 class DefaultApi(
@@ -78,20 +78,21 @@ class DefaultApi(
 
 
         }
+      } ~
+      path("reservation" / IntNumber / "settle") { (reservationId) =>
+        put {
+
+
+          entity(as[Payment]) { body =>
+            defaultService.reservationReservationIdSettlePut(body = body, reservationId = reservationId)
+          }
+
+
+        }
       }
-  //  ~
-  //      path("reservation" / IntNumber / "settle") { (reservationId) =>
-  //        put {
-  //
-  //
-  //          entity(as[Payment]) { body =>
-  //            defaultService.reservationReservationIdSettlePut(body = body, reservationId = reservationId)
-  //          }
-  //
-  //
-  //        }
-  //      }
 }
+
+
 
 trait DefaultApiService {
 
@@ -189,8 +190,8 @@ trait DefaultApiService {
   def reservationReservationIdGet(reservationId: Int)
                                  (implicit toEntityMarshallerReservation: ToEntityMarshaller[Reservation], toEntityMarshallerError: ToEntityMarshaller[Error]): Route
 
-  def reservationReservationIdSettlePut204: Route =
-    complete((204, "OK"))
+  def reservationReservationIdSettlePut200(response: SettleReservationResponse)(implicit toEntityMarshallerSettleReservationResponse: ToEntityMarshaller[SettleReservationResponse]): Route =
+    complete((200, response))
 
   def reservationReservationIdSettlePut400(responseError: Error)(implicit toEntityMarshallerError: ToEntityMarshaller[Error]): Route =
     complete((400, responseError))
@@ -199,14 +200,14 @@ trait DefaultApiService {
     complete((422, responseError))
 
   /**
-   * Code: 204, Message: OK
+   * Code: 204, Message: a SettleReservationResponse
    * Code: 400, Message: Bad Request, DataType: Error
    * Code: 422, Message: Unexpected error, DataType: Error
    */
   def reservationReservationIdSettlePut(body: Payment, reservationId: Int)
-                                       (implicit toEntityMarshallerBody: ToEntityMarshaller[Payment]
-
-                                        , toEntityMarshallerError: ToEntityMarshaller[Error]
+                                       (implicit toEntityMarshallerBody: ToEntityMarshaller[Payment],
+                                        toEntityMarshallerSettleReservationResponse: ToEntityMarshaller[SettleReservationResponse]
+                                        ,toEntityMarshallerError: ToEntityMarshaller[Error]
                                        ): Route
 
 }
@@ -226,6 +227,8 @@ trait DefaultApiMarshaller {
   implicit def toEntityMarshallerReservation: ToEntityMarshaller[Reservation]
 
   implicit def toEntityMarshallerError: ToEntityMarshaller[Error]
+
+  implicit def toEntityMarshallerSettleReservationResponse: ToEntityMarshaller[SettleReservationResponse]
 
 }
 
