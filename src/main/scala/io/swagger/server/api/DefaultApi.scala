@@ -1,97 +1,144 @@
 package io.swagger.server.api
 
-import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.marshalling.ToEntityMarshaller
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
-import akka.http.scaladsl.server.Route
-import io.swagger.server.input_model.PostReservation
-import io.swagger.server.model.{Error, Payment, Place, PricingPlan, Reservation, SettleReservationResponse}
+import io.swagger.server.model.{ErrorResponse, Payment, Place, PostReservation, PostSuccessResponse, PricingPlan, Reservation, SettleReservationResponse}
 import spray.json.RootJsonFormat
+import akka.http.scaladsl.model.HttpMethods._
+import akka.http.scaladsl.model.headers._
+import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
+import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server.directives.RouteDirectives.complete
+import akka.http.scaladsl.server.{Directive0, Route}
+
+import scala.concurrent.duration._
+
+/**
+ * From https://dzone.com/articles/handling-cors-in-akka-http
+ * and https://ali.actor
+ */
+trait CORSHandler {
+
+  private val corsResponseHeaders = List(
+    `Access-Control-Allow-Origin`.*,
+    `Access-Control-Allow-Credentials`(true),
+    `Access-Control-Allow-Headers`("Authorization",
+      "Content-Type", "X-Requested-With"),
+    `Access-Control-Max-Age`(1.day.toMillis) //Tell browser to cache OPTIONS requests
+  )
+
+
+  //this directive adds access control headers to normal responses
+  private def addAccessControlHeaders: Directive0 = {
+    respondWithHeaders(corsResponseHeaders)
+  }
+
+  //this handles preflight OPTIONS requests.
+  private def preflightRequestHandler: Route = options {
+    complete(HttpResponse(StatusCodes.OK).
+      withHeaders(`Access-Control-Allow-Methods`(OPTIONS, POST, PUT, GET, DELETE)))
+  }
+
+  // Wrap the Route with this method to enable adding of CORS headers
+  def corsHandler(r: Route): Route = addAccessControlHeaders {
+    preflightRequestHandler ~ r
+  }
+
+  // Helper method to add CORS headers to HttpResponse
+  // preventing duplication of CORS headers across code
+  def addCORSHeaders(response: HttpResponse): HttpResponse =
+    response.withHeaders(corsResponseHeaders)
+}
+
 
 class DefaultApi(
                   defaultService: DefaultApiService,
                   defaultMarshaller: DefaultApiMarshaller
-                ) extends SprayJsonSupport {
+                ) extends SprayJsonSupport with CORSHandler {
 
   import defaultMarshaller._
 
-  lazy val route: Route =
-    path("place" / "free") {
-      get {
+  private val cors = new CORSHandler {}
 
-
-        defaultService.placeFreeGet()
-
-
-      }
-    } ~
-      path("place") {
+  lazy val route: Route = {
+    cors.corsHandler(
+      path("place" / "free") {
         get {
 
 
-          defaultService.placeGet()
+          defaultService.placeFreeGet()
 
 
         }
       } ~
-      path("pricing") {
-        get {
+        path("place") {
+          get {
 
 
-          defaultService.pricingGet()
+            defaultService.placeGet()
 
 
-        }
-      } ~
-      path("reservation") {
-        get {
-
-
-          defaultService.reservationGet()
-
-
-        }
-      } ~
-      path("reservation") {
-        post {
-
-          entity(as[PostReservation]) {
-            body => defaultService.reservationPost(body = body)
           }
-
-        }
-      } ~
-      path("reservation" / IntNumber) { (reservationId) =>
-        delete {
+        } ~
+        path("pricing") {
+          get {
 
 
-          defaultService.reservationReservationIdDelete(reservationId = reservationId)
+            defaultService.pricingGet()
 
 
-        }
-      } ~
-      path("reservation" / IntNumber) { (reservationId) =>
-        get {
-
-
-          defaultService.reservationReservationIdGet(reservationId = reservationId)
-
-
-        }
-      } ~
-      path("reservation" / IntNumber / "settle") { (reservationId) =>
-        put {
-
-
-          entity(as[Payment]) { body =>
-            defaultService.reservationReservationIdSettlePut(body = body, reservationId = reservationId)
           }
+        } ~
+        path("reservation") {
+          get {
 
 
+            defaultService.reservationGet()
+
+
+          }
+        } ~
+        path("reservation") {
+          post {
+
+            entity(as[PostReservation]) {
+              body => defaultService.reservationPost(body = body)
+            }
+
+          }
+        } ~
+        path("reservation" / IntNumber) { (reservationId) =>
+          delete {
+
+
+            defaultService.reservationReservationIdDelete(reservationId = reservationId)
+
+
+          }
+        } ~
+        path("reservation" / IntNumber) { (reservationId) =>
+          get {
+
+
+            defaultService.reservationReservationIdGet(reservationId = reservationId)
+
+
+          }
+        } ~
+        path("reservation" / IntNumber / "settle") { (reservationId) =>
+          put {
+
+
+            entity(as[Payment]) { body =>
+              defaultService.reservationReservationIdSettlePut(body = body, reservationId = reservationId)
+            }
+
+
+          }
         }
-      }
+    )
+  }
 }
-
 
 
 trait DefaultApiService {
@@ -99,7 +146,7 @@ trait DefaultApiService {
   def placeFreeGet200(responsePlacearray: List[Place])(implicit toEntityMarshallerPlacearray: ToEntityMarshaller[List[Place]]): Route =
     complete((200, responsePlacearray))
 
-  def placeFreeGet422(responseError: Error)(implicit toEntityMarshallerError: ToEntityMarshaller[Error]): Route =
+  def placeFreeGet422(responseError: ErrorResponse)(implicit toEntityMarshallerError: ToEntityMarshaller[ErrorResponse]): Route =
     complete((422, responseError))
 
   /**
@@ -107,12 +154,12 @@ trait DefaultApiService {
    * Code: 422, Message: Unexpected error, DataType: Error
    */
   def placeFreeGet()
-                  (implicit toEntityMarshallerPlacearray: ToEntityMarshaller[List[Place]], toEntityMarshallerError: ToEntityMarshaller[Error]): Route
+                  (implicit toEntityMarshallerPlacearray: ToEntityMarshaller[List[Place]], toEntityMarshallerError: ToEntityMarshaller[ErrorResponse]): Route
 
   def placeGet200(responsePlacearray: List[Place])(implicit toEntityMarshallerPlacearray: ToEntityMarshaller[List[Place]]): Route =
     complete((200, responsePlacearray))
 
-  def placeGet422(responseError: Error)(implicit toEntityMarshallerError: ToEntityMarshaller[Error]): Route =
+  def placeGet422(responseError: ErrorResponse)(implicit toEntityMarshallerError: ToEntityMarshaller[ErrorResponse]): Route =
     complete((422, responseError))
 
   /**
@@ -120,12 +167,12 @@ trait DefaultApiService {
    * Code: 422, Message: Unexpected error, DataType: Error
    */
   def placeGet()
-              (implicit toEntityMarshallerPlacearray: ToEntityMarshaller[List[Place]], toEntityMarshallerError: ToEntityMarshaller[Error]): Route
+              (implicit toEntityMarshallerPlacearray: ToEntityMarshaller[List[Place]], toEntityMarshallerError: ToEntityMarshaller[ErrorResponse]): Route
 
   def pricingGet200(responsePricingPlanarray: List[PricingPlan])(implicit toEntityMarshallerPricingPlanarray: ToEntityMarshaller[List[PricingPlan]]): Route =
     complete((200, responsePricingPlanarray))
 
-  def pricingGet422(responseError: Error)(implicit toEntityMarshallerError: ToEntityMarshaller[Error]): Route =
+  def pricingGet422(responseError: ErrorResponse)(implicit toEntityMarshallerError: ToEntityMarshaller[ErrorResponse]): Route =
     complete((422, responseError))
 
   /**
@@ -133,12 +180,12 @@ trait DefaultApiService {
    * Code: 422, Message: Unexpected error, DataType: Error
    */
   def pricingGet()
-                (implicit toEntityMarshallerPricingPlanarray: ToEntityMarshaller[List[PricingPlan]], toEntityMarshallerError: ToEntityMarshaller[Error]): Route
+                (implicit toEntityMarshallerPricingPlanarray: ToEntityMarshaller[List[PricingPlan]], toEntityMarshallerError: ToEntityMarshaller[ErrorResponse]): Route
 
   def reservationGet200(responseReservationarray: List[Reservation])(implicit toEntityMarshallerReservationarray: ToEntityMarshaller[List[Reservation]]): Route =
     complete((200, responseReservationarray))
 
-  def reservationGet422(responseError: Error)(implicit toEntityMarshallerError: ToEntityMarshaller[Error]): Route =
+  def reservationGet422(responseError: ErrorResponse)(implicit toEntityMarshallerError: ToEntityMarshaller[ErrorResponse]): Route =
     complete((422, responseError))
 
   /**
@@ -146,15 +193,16 @@ trait DefaultApiService {
    * Code: 422, Message: Unexpected error, DataType: Error
    */
   def reservationGet()
-                    (implicit toEntityMarshallerReservationarray: ToEntityMarshaller[List[Reservation]], toEntityMarshallerError: ToEntityMarshaller[Error]): Route
+                    (implicit toEntityMarshallerReservationarray: ToEntityMarshaller[List[Reservation]], toEntityMarshallerError: ToEntityMarshaller[ErrorResponse]): Route
 
-  def reservationPost201: Route =
-    complete((201, "Reservation added"))
+  def reservationPost201(response: PostSuccessResponse)
+                        (implicit toEntityMarshallerPostSuccessResponse: ToEntityMarshaller[PostSuccessResponse]): Route =
+    complete((201, response))
 
-  def reservationPost400(responseError: Error)(implicit toEntityMarshallerError: ToEntityMarshaller[Error]): Route =
+  def reservationPost400(responseError: ErrorResponse)(implicit toEntityMarshallerError: ToEntityMarshaller[ErrorResponse]): Route =
     complete((400, responseError))
 
-  def reservationPost422(responseError: Error)(implicit toEntityMarshallerError: ToEntityMarshaller[Error]): Route =
+  def reservationPost422(responseError: ErrorResponse)(implicit toEntityMarshallerError: ToEntityMarshaller[ErrorResponse]): Route =
     complete((422, responseError))
 
   /**
@@ -162,12 +210,14 @@ trait DefaultApiService {
    * Code: 400, Message: Bad Request, DataType: Error
    * Code: 422, Message: Unexpected error, DataType: Error
    */
-  def reservationPost(body: PostReservation)(implicit toEntityMarshallerError: ToEntityMarshaller[Error]): Route
+  def reservationPost(body: PostReservation)(
+    implicit toEntityMarshallerPostSuccessResponse: ToEntityMarshaller[PostSuccessResponse],
+    toEntityMarshallerError: ToEntityMarshaller[ErrorResponse]): Route
 
   def reservationReservationIdDelete204: Route =
     complete((204, "OK"))
 
-  def reservationReservationIdDelete422(responseError: Error)(implicit toEntityMarshallerError: ToEntityMarshaller[Error]): Route =
+  def reservationReservationIdDelete422(responseError: ErrorResponse)(implicit toEntityMarshallerError: ToEntityMarshaller[ErrorResponse]): Route =
     complete((422, responseError))
 
   /**
@@ -175,12 +225,12 @@ trait DefaultApiService {
    * Code: 422, Message: Unexpected error, DataType: Error
    */
   def reservationReservationIdDelete(reservationId: Int)
-                                    (implicit toEntityMarshallerError: ToEntityMarshaller[Error]): Route
+                                    (implicit toEntityMarshallerError: ToEntityMarshaller[ErrorResponse]): Route
 
   def reservationReservationIdGet200(responseReservation: Reservation)(implicit toEntityMarshallerReservation: ToEntityMarshaller[Reservation]): Route =
     complete((200, responseReservation))
 
-  def reservationReservationIdGet422(responseError: Error)(implicit toEntityMarshallerError: ToEntityMarshaller[Error]): Route =
+  def reservationReservationIdGet422(responseError: ErrorResponse)(implicit toEntityMarshallerError: ToEntityMarshaller[ErrorResponse]): Route =
     complete((422, responseError))
 
   /**
@@ -188,15 +238,15 @@ trait DefaultApiService {
    * Code: 422, Message: Unexpected error, DataType: Error
    */
   def reservationReservationIdGet(reservationId: Int)
-                                 (implicit toEntityMarshallerReservation: ToEntityMarshaller[Reservation], toEntityMarshallerError: ToEntityMarshaller[Error]): Route
+                                 (implicit toEntityMarshallerReservation: ToEntityMarshaller[Reservation], toEntityMarshallerError: ToEntityMarshaller[ErrorResponse]): Route
 
   def reservationReservationIdSettlePut200(response: SettleReservationResponse)(implicit toEntityMarshallerSettleReservationResponse: ToEntityMarshaller[SettleReservationResponse]): Route =
     complete((200, response))
 
-  def reservationReservationIdSettlePut400(responseError: Error)(implicit toEntityMarshallerError: ToEntityMarshaller[Error]): Route =
+  def reservationReservationIdSettlePut400(responseError: ErrorResponse)(implicit toEntityMarshallerError: ToEntityMarshaller[ErrorResponse]): Route =
     complete((400, responseError))
 
-  def reservationReservationIdSettlePut422(responseError: Error)(implicit toEntityMarshallerError: ToEntityMarshaller[Error]): Route =
+  def reservationReservationIdSettlePut422(responseError: ErrorResponse)(implicit toEntityMarshallerError: ToEntityMarshaller[ErrorResponse]): Route =
     complete((422, responseError))
 
   /**
@@ -207,7 +257,7 @@ trait DefaultApiService {
   def reservationReservationIdSettlePut(body: Payment, reservationId: Int)
                                        (implicit toEntityMarshallerBody: ToEntityMarshaller[Payment],
                                         toEntityMarshallerSettleReservationResponse: ToEntityMarshaller[SettleReservationResponse]
-                                        ,toEntityMarshallerError: ToEntityMarshaller[Error]
+                                        , toEntityMarshallerError: ToEntityMarshaller[ErrorResponse]
                                        ): Route
 
 }
@@ -226,7 +276,9 @@ trait DefaultApiMarshaller {
 
   implicit def toEntityMarshallerReservation: ToEntityMarshaller[Reservation]
 
-  implicit def toEntityMarshallerError: ToEntityMarshaller[Error]
+  implicit def toEntityMarshallerError: ToEntityMarshaller[ErrorResponse]
+
+  implicit def toEntityMarshallerPostSuccessResponse: ToEntityMarshaller[PostSuccessResponse]
 
   implicit def toEntityMarshallerSettleReservationResponse: ToEntityMarshaller[SettleReservationResponse]
 

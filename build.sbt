@@ -7,5 +7,6 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-http" % "10.1.5",
   "com.typesafe.akka" %% "akka-stream" % "2.5.23",
   "com.typesafe.akka" %% "akka-http-spray-json" % "10.1.10",
-  "com.github.nscala-time" %% "nscala-time" % "2.22.0"
+  "com.github.nscala-time" %% "nscala-time" % "2.22.0",
+  "ch.megard" %% "akka-http-cors" % "0.4.2"
 )

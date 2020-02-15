@@ -2,11 +2,10 @@ package fr.mipn.parc.actors
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.http.scaladsl.model.HttpHeader.ParsingResult.Ok
-import io.swagger.server.model.{Error, Payment, Reservation, SettleReservationResponse}
+import io.swagger.server.model.{ErrorResponse, Payment, PostReservation, PostSuccessResponse, Reservation, SettleReservationResponse}
 import akka.pattern.ask
 import akka.util.Timeout
 import fr.mipn.parc.ResponseTypes.{EitherCheckPricingExists, OptionAllocatePlace, OptionCalculateFee}
-import io.swagger.server.input_model.PostReservation
 import io.swagger.server.utils.{DateFormatter, FileHelpers}
 import org.joda.time.DateTime
 import spray.json.DefaultJsonProtocol
@@ -62,7 +61,7 @@ case class ReservationScheduler(feeCalculator: ActorRef, placeAllocator: ActorRe
     FileHelpers.readData(
       FileHelpers.RESERVATIONS_FILE_PATH
     )(reservationJsonFormatProtocol) match {
-      case None => sender ! Left(Error("Internal Error"))
+      case None => sender ! Left(ErrorResponse("Internal Error"))
 
       case Some(reservations) => callback(reservations)
     }
@@ -97,8 +96,8 @@ case class ReservationScheduler(feeCalculator: ActorRef, placeAllocator: ActorRe
       FileHelpers.RESERVATIONS_FILE_PATH,
       content
     )(reservationJsonFormatProtocol) match {
-      case Some(err) => sender ! Some(Error("Internal Error"))
-      case None => if(callback != null) callback()
+      case Some(err) => sender ! Some(ErrorResponse("Internal Error"))
+      case None => if (callback != null) callback()
     }
   }
 
@@ -114,7 +113,7 @@ case class ReservationScheduler(feeCalculator: ActorRef, placeAllocator: ActorRe
       }
   }
 
-  def updateReservation(sender: ActorRef, newReservation : Reservation) = {
+  def updateReservation(sender: ActorRef, newReservation: Reservation) = {
     getAllReservations(
       sender,
       (reservations: List[Reservation]) => {
@@ -122,7 +121,7 @@ case class ReservationScheduler(feeCalculator: ActorRef, placeAllocator: ActorRe
         val reservation = reservations.find(r => r.id == newReservation.id).orNull
 
         if (reservation == null) {
-          sender ! Some(Error("reservation not found"))
+          sender ! Some(ErrorResponse("reservation not found"))
         }
 
         //Save Reservation
@@ -152,7 +151,7 @@ case class ReservationScheduler(feeCalculator: ActorRef, placeAllocator: ActorRe
       } yield {
         checkPricingExistsResult match {
           case Left(err) => client ! Left(err) // if error return it directly
-          case Right(false) => client ! Left(Error("Bad input")) // if not found
+          case Right(false) => client ! Left(ErrorResponse("Bad input")) // if not found
         }
         allocatePlaceResult match {
           case Some(err) => client ! Left(err)
@@ -171,8 +170,8 @@ case class ReservationScheduler(feeCalculator: ActorRef, placeAllocator: ActorRe
 
           FileHelpers.writeData(FileHelpers.RESERVATIONS_FILE_PATH, finalData)(reservationJsonFormatProtocol)
           match {
-            case Some(err) => client ! Error("Internal Error")
-            case None => client ! Right(Ok)
+            case Some(err) => client ! ErrorResponse("Internal Error")
+            case None => client ! Right(PostSuccessResponse(lastId))
           }
         })
 
@@ -202,7 +201,7 @@ case class ReservationScheduler(feeCalculator: ActorRef, placeAllocator: ActorRe
           val reservation = reservations.find(r => r.id == cancelReservation.idReservation).orNull
 
           if (reservation == null) {
-            client ! Some(Error("reservation not found"))
+            client ! Some(ErrorResponse("reservation not found"))
           }
 
           // Set Place Free
@@ -228,24 +227,24 @@ case class ReservationScheduler(feeCalculator: ActorRef, placeAllocator: ActorRe
       val reservation = getReservationById(settleReservation.reservationId).orNull
 
       if (reservation == null) {
-        client ! Left(Error("reservation not found"))
+        client ! Left(ErrorResponse("reservation not found"))
       }
 
       val startT = DateFormatter.parseDate(reservation.startTime).orNull
       if (startT == null) {
-        client ! Left(Error("invalid date"))
+        client ! Left(ErrorResponse("invalid date"))
       }
 
 
       // calculate duration of reservation
       (feeCalculator ? FeeCalculator.CalculateFee(startT, reservation.pricingPlanName)).mapTo[OptionCalculateFee]
         .map {
-          case None => client ! Left(Error)
+          case None => client ! Left(ErrorResponse)
           case Some(fee) =>
             // check wallet
             val wallet = settleReservation.payment.wallet
             if (wallet < fee) {
-              client ! Left(Error("wallet not enough"))
+              client ! Left(ErrorResponse("wallet not enough"))
             }
             // setPlace Free
             setPlaceFree(client, reservation.placeId)

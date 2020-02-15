@@ -2,7 +2,7 @@ package io.swagger.server.utils
 
 import java.io.{BufferedWriter, File, FileWriter}
 
-import io.swagger.server.model.Error
+import io.swagger.server.model.ErrorResponse
 import spray.json._
 
 import scala.io.Source

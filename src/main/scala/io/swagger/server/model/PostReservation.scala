@@ -1,6 +1,4 @@
-package io.swagger.server.input_model
-
-import io.swagger.server.model.Reservation
+package io.swagger.server.model
 
 case class PostReservation(
                             placeId: Int,
@@ -22,4 +20,3 @@ case class PostReservation(
     )
   }
 }
-

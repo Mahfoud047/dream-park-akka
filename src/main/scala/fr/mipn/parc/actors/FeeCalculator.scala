@@ -1,7 +1,7 @@
 package fr.mipn.parc.actors
 
 import akka.actor.{Actor, ActorLogging, Props}
-import io.swagger.server.model.{Error, PlaceType, PricingPlan}
+import io.swagger.server.model.{ErrorResponse, PlaceType, PricingPlan}
 import org.joda.time.{DateTime, Hours, Minutes}
 
 
@@ -54,7 +54,7 @@ case class FeeCalculator() extends Actor with ActorLogging {
 
       val chosenPlan = plans.find((p) => p._1 == calculateFee.pricingName).orNull._2
       if (chosenPlan == null) {
-        sender ! Error("plan not found")
+        sender ! ErrorResponse("plan not found")
       }
       val minTime = chosenPlan.minNumberOfHours
       val hoursBetween = Minutes.minutesBetween(calculateFee.start, DateTime.now).getMinutes / 60

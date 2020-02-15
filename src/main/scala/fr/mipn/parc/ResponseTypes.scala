@@ -3,17 +3,19 @@ package fr.mipn.parc
 import io.swagger.server.model._
 
 object ResponseTypes {
-  type EitherArrayPlace = Either[Error, List[Place]]
-  type EitherArrayPricingPlan= Either[Error, List[PricingPlan]]
-  type OptionAllocatePlace = Option[Error]
-  type OptionFreePlace = Option[Error]
 
-  type EitherCheckPricingExists = Either[Error, Boolean]
+  type EitherArrayPlace = Either[ErrorResponse, List[Place]]
+  type EitherArrayPricingPlan= Either[ErrorResponse, List[PricingPlan]]
+  type OptionAllocatePlace = Option[ErrorResponse]
+  type OptionFreePlace = Option[ErrorResponse]
 
-  type EitherPostReservation= Either[Error, Nothing]
-  type EitherArrayReservation = Either[Error, List[Reservation]]
+  type EitherCheckPricingExists = Either[ErrorResponse, Boolean]
 
-  type EitherSettleReservation = Either[Error, SettleReservationResponse]
+  type EitherPostReservation= Either[ErrorResponse, PostSuccessResponse]
+
+  type EitherArrayReservation =  Either[ErrorResponse, List[Reservation]]
+
+  type EitherSettleReservation = Either[ErrorResponse, SettleReservationResponse]
 
   type OptionCalculateFee = Option[Double]
 

@@ -3,7 +3,7 @@ package fr.mipn.parc.actors
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import io.swagger.server.enums.PlaceStatus
 import io.swagger.server.enums.PlaceStatus.PlaceStatus
-import io.swagger.server.model.{Error, Place, PlaceType}
+import io.swagger.server.model.{ErrorResponse, Place, PlaceType}
 
 
 object PlaceAllocator {
@@ -20,6 +20,8 @@ object PlaceAllocator {
   ).withDefaultValue(null)
 
   case object GetFreePlaces
+
+  case object GetAllPlaces
 
   case class AllocatePlace(placeId: Int)
 
@@ -39,9 +41,10 @@ case class PlaceAllocator() extends Actor with ActorLogging {
     Option(place)
   }
 
+
   def updatePlaceStatus(sender: ActorRef, placeId: Int, newStatus: PlaceStatus): Unit = {
     getPlace(placeId) match {
-      case None => sender ! Some(Error("Place not found"))
+      case None => sender ! Some(ErrorResponse("Place not found"))
       case Some(place) =>
         // Update Status
         places += (placeId -> place.copy(status = newStatus))
@@ -55,6 +58,10 @@ case class PlaceAllocator() extends Actor with ActorLogging {
       val freePlaces: List[Place] = places.filter({
         case (_, place) => place.status == PlaceStatus.FREE
       }).values.toList
+      sender ! Right(freePlaces)
+
+    case GetAllPlaces =>
+      val freePlaces: List[Place] = places.values.toList
       sender ! Right(freePlaces)
 
 
