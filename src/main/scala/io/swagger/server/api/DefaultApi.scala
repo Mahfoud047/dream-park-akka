@@ -227,8 +227,12 @@ trait DefaultApiService {
   def reservationReservationIdDelete(reservationId: Int)
                                     (implicit toEntityMarshallerError: ToEntityMarshaller[ErrorResponse]): Route
 
+
   def reservationReservationIdGet200(responseReservation: Reservation)(implicit toEntityMarshallerReservation: ToEntityMarshaller[Reservation]): Route =
     complete((200, responseReservation))
+
+  def reservationReservationIdGet404(responseError: ErrorResponse)(implicit toEntityMarshallerError: ToEntityMarshaller[ErrorResponse]): Route =
+    complete((404, responseError))
 
   def reservationReservationIdGet422(responseError: ErrorResponse)(implicit toEntityMarshallerError: ToEntityMarshaller[ErrorResponse]): Route =
     complete((422, responseError))

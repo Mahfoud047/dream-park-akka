@@ -36,6 +36,8 @@ object ReservationScheduler {
 
   case object GetAllReservations
 
+  case class GetReservation(idReservation: Int)
+
   def apply(feeCalculator: ActorRef, placeAllocator: ActorRef): Props =
     Props(new ReservationScheduler(feeCalculator, placeAllocator))
 
@@ -188,6 +190,20 @@ case class ReservationScheduler(feeCalculator: ActorRef, placeAllocator: ActorRe
      */
     case GetAllReservations =>
       sender ! Right(reservations.values.toList)
+
+
+    /**
+     * ********
+     */
+    case GetReservation(id) =>
+      val reservation = reservations.getOrElse(id, null)
+
+      println(reservation)
+      if (reservation != null) {
+        sender ! Right(reservation)
+      } else {
+        sender ! Left(ErrorResponse("404"))
+      }
 
 
     /**

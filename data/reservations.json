@@ -1,11 +1,1 @@
-[
-  {
-    "endTime": "2020-02-15 21:16",
-    "id": 15,
-    "licensePlate": "56456456",
-    "phoneNumber": "0758212682",
-    "placeId": 4,
-    "pricingPlanName": "Starter",
-    "startTime": "2020-02-15 01:53"
-  }
-]
+[{"endTime":"2020-02-15 21:16","id":15,"licensePlate":"56456456","phoneNumber":"0758212682","placeId":4,"pricingPlanName":"Starter","startTime":"2020-02-15 01:53"},{"id":16,"licensePlate":"160101000","placeId":4,"pricingPlanName":"Starter","startTime":"2020-02-17 14:07"}]

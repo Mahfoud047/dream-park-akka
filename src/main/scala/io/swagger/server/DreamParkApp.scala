@@ -146,9 +146,23 @@ object DreamParkApp extends App {
 
     /**
      * Code: 200, Message: a reservation object, DataType: Reservation
+     * Code: 404, Message: Not Found
      * Code: 422, Message: Unexpected error, DataType: Error
      */
-    override def reservationReservationIdGet(reservationId: Int)(implicit toEntityMarshallerReservation: ToEntityMarshaller[Reservation], toEntityMarshallerError: ToEntityMarshaller[ErrorResponse]): Route = ???
+    override def reservationReservationIdGet(reservationId: Int)(implicit toEntityMarshallerReservation: ToEntityMarshaller[Reservation], toEntityMarshallerError: ToEntityMarshaller[ErrorResponse]): Route = {
+      val response = (parkSystem.reservationScheduler ? ReservationScheduler.GetReservation(reservationId)).mapTo[EitherReservation]
+
+      requestcontext => {
+        response.flatMap {
+          case Right(reservation)
+          => reservationReservationIdGet200(reservation)(toEntityMarshallerReservation)(requestcontext)
+          case Left(ErrorResponse("404"))
+          => reservationReservationIdGet404(ErrorResponse("Reservation Not Found"))(toEntityMarshallerError)(requestcontext)
+          case Left(err: ErrorResponse)
+          => reservationReservationIdSettlePut422(err)(toEntityMarshallerError)(requestcontext)
+        }
+      }
+    }
 
     /**
      * Code: 204, Message: OK
@@ -156,9 +170,9 @@ object DreamParkApp extends App {
      * Code: 422, Message: Unexpected error, DataType: Error
      */
     override def reservationReservationIdSettlePut(body: Payment, reservationId: Int)
-              (implicit toEntityMarshallerBody: ToEntityMarshaller[Payment],
-               toEntityMarshallerSettleReservationResponse: ToEntityMarshaller[SettleReservationResponse],
-               toEntityMarshallerError: ToEntityMarshaller[ErrorResponse]): Route = {
+                                                  (implicit toEntityMarshallerBody: ToEntityMarshaller[Payment],
+                                                   toEntityMarshallerSettleReservationResponse: ToEntityMarshaller[SettleReservationResponse],
+                                                   toEntityMarshallerError: ToEntityMarshaller[ErrorResponse]): Route = {
       val response = (parkSystem.reservationScheduler ? ReservationScheduler.SettleReservation(body, reservationId))
         .mapTo[EitherSettleReservation]
 
@@ -181,7 +195,7 @@ object DreamParkApp extends App {
      */
     override def reservationPost(body: ReservationBody)
                                 (implicit toEntityMarshallerPostSuccessResponse: ToEntityMarshaller[PostSuccessResponse],
-                          toEntityMarshallerError: ToEntityMarshaller[ErrorResponse]): Route = {
+                                 toEntityMarshallerError: ToEntityMarshaller[ErrorResponse]): Route = {
 
       val response = (parkSystem.reservationScheduler ? ReservationScheduler.ReservePlace(body)).mapTo[EitherPostReservation]
 
@@ -213,8 +227,6 @@ object DreamParkApp extends App {
   }:${
     port
   }/\nPress RETURN to stop...")
-
-
 
 
 }

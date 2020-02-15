@@ -15,6 +15,8 @@ object ResponseTypes {
 
   type EitherArrayReservation =  Either[ErrorResponse, List[Reservation]]
 
+  type EitherReservation =  Either[ErrorResponse, Reservation]
+
   type EitherSettleReservation = Either[ErrorResponse, SettleReservationResponse]
 
   type OptionCalculateFee = Option[Double]
