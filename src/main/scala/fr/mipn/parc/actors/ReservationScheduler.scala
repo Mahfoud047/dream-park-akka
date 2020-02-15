@@ -17,10 +17,10 @@ import scala.concurrent.duration._
 
 object ReservationScheduler {
 
-  //  var lastId: Int = 0;
-  //  var reservations: Map[Int, Reservation] = Map(
-  //    // empty
-  //  ).withDefaultValue(null)
+  //    var lastId: Int = 0;
+  var reservations: Map[Int, Reservation] = Map(
+    // empty
+  ).withDefaultValue(null)
 
   case class ReservePlace(reservationRequest: PostReservation)
 
@@ -52,52 +52,44 @@ case class ReservationScheduler(feeCalculator: ActorRef, placeAllocator: ActorRe
     implicit val format = listFormat(jsonFormat7(Reservation))
   }
 
-  /**
-   *
-   * @param callback
-   * @param sender
-   */
-  def getAllReservations(sender: ActorRef, callback: (List[Reservation]) => Unit): Unit = {
+  override def preStart() {
+    // get places from file reservations.json
     FileHelpers.readData(
       FileHelpers.RESERVATIONS_FILE_PATH
     )(reservationJsonFormatProtocol) match {
-      case None => sender ! Left(ErrorResponse("Internal Error"))
+      case None => log.info("no place")
 
-      case Some(reservations) => callback(reservations)
+      case Some(places) => initPlaces(places)
     }
   }
 
 
   /**
    *
-   * @param idReservation
-   * @return
+   * @param listReservations
    */
-  def getReservationById(idReservation: Int): Option[Reservation] = {
-    FileHelpers.readData(
-      FileHelpers.RESERVATIONS_FILE_PATH
-    )(reservationJsonFormatProtocol) match {
-      case None => None
-      case Some(reservations) => reservations.find(r => r.id == idReservation)
-    }
+  def initPlaces(listReservations: List[Reservation]): Unit = {
+    listReservations.foreach(res =>
+      reservations += (res.id -> res)
+    )
   }
 
 
   /**
    *
-   * @param sender
-   * @param content
+   * @param onSuccess
+   * @param onError
    */
-  def saveReservations(sender: ActorRef,
-                       content: List[Reservation],
-                       callback: () => Unit
+  def saveReservations(
+                        onSuccess: () => Unit,
+                        onError: () => Unit
                       ): Unit = {
     FileHelpers.writeData(
       FileHelpers.RESERVATIONS_FILE_PATH,
-      content
+      reservations.values.toList
     )(reservationJsonFormatProtocol) match {
-      case Some(err) => sender ! Some(ErrorResponse("Internal Error"))
-      case None => if (callback != null) callback()
+      case Some(err) => onError()
+      case None => if (onSuccess != null) onSuccess()
     }
   }
 
@@ -105,7 +97,7 @@ case class ReservationScheduler(feeCalculator: ActorRef, placeAllocator: ActorRe
    *
    * @return
    */
-  def setPlaceFree(sender: ActorRef, placeId: Int) = {
+  def setPlaceFree(sender: ActorRef, placeId: Int): Future[Unit] = {
     (placeAllocator ? PlaceAllocator.FreePlace(placeId))
       .mapTo[OptionAllocatePlace]
       .map {
@@ -113,23 +105,42 @@ case class ReservationScheduler(feeCalculator: ActorRef, placeAllocator: ActorRe
       }
   }
 
-  def updateReservation(sender: ActorRef, newReservation: Reservation) = {
-    getAllReservations(
-      sender,
-      (reservations: List[Reservation]) => {
-        // get Reservation by Id
-        val reservation = reservations.find(r => r.id == newReservation.id).orNull
+  def updateReservation(sender: ActorRef, newReservation: Reservation, callback: () => Unit): Unit = {
+    // get Reservation by Id
 
-        if (reservation == null) {
-          sender ! Some(ErrorResponse("reservation not found"))
-        }
+    val reservation = reservations.find(r => r._1 == newReservation.id).orNull._2
 
-        //Save Reservation
-        val newReservations = reservations.map((r => if (r.id == newReservation.id) newReservation else r))
-        saveReservations(sender, newReservations, null)
+    if (reservation == null) {
+      sender ! Some(ErrorResponse("reservation not found"))
+    }
 
-      }
+    reservations = reservations.updated(newReservation.id, newReservation)
+
+
+    //Save Reservations
+    saveReservations(
+      callback,
+      () => sender ! Some(ErrorResponse("Internal Error"))
     )
+
+
+  }
+
+
+  /**
+   *
+   * @param sender
+   */
+  def saveReservations(sender: ActorRef,
+                       callback: () => Unit
+                      ): Unit = {
+    FileHelpers.writeData(
+      FileHelpers.RESERVATIONS_FILE_PATH,
+      reservations.values.toList
+    )(reservationJsonFormatProtocol) match {
+      case Some(err) => sender ! Some(ErrorResponse("Internal Error"))
+      case None => if (callback != null) callback()
+    }
   }
 
   override def receive: Receive = {
@@ -159,33 +170,25 @@ case class ReservationScheduler(feeCalculator: ActorRef, placeAllocator: ActorRe
       }
 
 
-      getAllReservations(
-        client,
-        (reservations: List[Reservation]) => {
-          val lastId: Int = if (reservations.isEmpty) 1 else reservations.last.id + 1
+      val lastId: Int = if (reservations.isEmpty) 1 else reservations.keys.last + 1
 
-          val newReservation = reservePlace.reservationRequest.toReservation(id = lastId)
+      val newReservation = reservePlace.reservationRequest.toReservation(id = lastId)
 
-          val finalData = reservations :+ newReservation
+      reservations += (lastId -> newReservation)
 
-          FileHelpers.writeData(FileHelpers.RESERVATIONS_FILE_PATH, finalData)(reservationJsonFormatProtocol)
-          match {
-            case Some(err) => client ! ErrorResponse("Internal Error")
-            case None => client ! Right(PostSuccessResponse(lastId))
-          }
-        })
+      // persist
+      saveReservations(
+        () => client ! Right(PostSuccessResponse(lastId)),
+        () => client ! Left(ErrorResponse("Internal Error"))
+      )
+
 
     /**
      * *********
      */
     case GetAllReservations =>
+      sender ! Right(reservations.values.toList)
 
-      getAllReservations(
-        sender,
-        (reservations: List[Reservation]) => {
-          sender ! Right(reservations)
-        }
-      )
 
     /**
      * *********
@@ -194,25 +197,22 @@ case class ReservationScheduler(feeCalculator: ActorRef, placeAllocator: ActorRe
     case cancelReservation: CancelReservation =>
       val client: ActorRef = sender
 
-      getAllReservations(
-        client,
-        (reservations: List[Reservation]) => {
-          // get Place Id
-          val reservation = reservations.find(r => r.id == cancelReservation.idReservation).orNull
+      val reservation: Reservation =
+        reservations.find(r => r._1 == cancelReservation.idReservation).map(_._2).orNull
 
-          if (reservation == null) {
-            client ! Some(ErrorResponse("reservation not found"))
-          }
+      if (reservation == null) {
+        client ! Some(ErrorResponse("reservation not found"))
+      } else {
+        // Set Place Free
+        setPlaceFree(client, reservation.placeId)
 
-          // Set Place Free
-          setPlaceFree(client, reservation.placeId)
-
-          //Delete Reservation
-          val newReservations = reservations.filter(_.id != reservation.id)
-          saveReservations(client, newReservations, () => client ! None)
-
-        }
-      )
+        //Delete Reservation
+        reservations = reservations.filterKeys(_ != reservation.id)
+        saveReservations(
+          () => client ! None,
+          () => client ! Some(ErrorResponse("Internal Error"))
+        )
+      }
 
 
     /**
@@ -224,47 +224,52 @@ case class ReservationScheduler(feeCalculator: ActorRef, placeAllocator: ActorRe
       val client: ActorRef = sender
 
       // get the reservaton
-      val reservation = getReservationById(settleReservation.reservationId).orNull
+      val id = settleReservation.reservationId
+      val reservation = reservations.find(_._1 == id).map(_._2).orNull
 
       if (reservation == null) {
         client ! Left(ErrorResponse("reservation not found"))
-      }
-
-      val startT = DateFormatter.parseDate(reservation.startTime).orNull
-      if (startT == null) {
-        client ! Left(ErrorResponse("invalid date"))
-      }
-
-
-      // calculate duration of reservation
-      (feeCalculator ? FeeCalculator.CalculateFee(startT, reservation.pricingPlanName)).mapTo[OptionCalculateFee]
-        .map {
-          case None => client ! Left(ErrorResponse)
-          case Some(fee) =>
-            // check wallet
-            val wallet = settleReservation.payment.wallet
-            if (wallet < fee) {
-              client ! Left(ErrorResponse("wallet not enough"))
-            }
-            // setPlace Free
-            setPlaceFree(client, reservation.placeId)
-
-            //update reservation date
-            val now = DateTime.now()
-            val newReservation = reservation.copy(endTime = formatDate(now))
-            updateReservation(client, newReservation)
-
-            // return fee
-            client ! Right(SettleReservationResponse(fee, wallet - fee))
+      } else {
+        val startT = DateFormatter.parseDate(reservation.startTime).orNull
+        if (startT == null) {
+          client ! Left(ErrorResponse("invalid date"))
         }
+
+        // calculate duration of reservation
+        (feeCalculator ? FeeCalculator.CalculateFee(startT, reservation.pricingPlanName)).mapTo[OptionCalculateFee]
+          .map {
+            case None => client ! Left(ErrorResponse)
+            case Some(fee) =>
+              // check wallet
+              val wallet = settleReservation.payment.wallet
+              if (wallet < fee) {
+                client ! Left(ErrorResponse("wallet not enough"))
+              }
+              // setPlace Free
+              setPlaceFree(client, reservation.placeId)
+
+              //update reservation date
+              val now = DateTime.now()
+              val newReservation = reservation.copy(endTime = formatDate(now))
+              updateReservation(
+                client,
+                newReservation,
+                () => client ! Right(SettleReservationResponse(fee, wallet - fee))
+              )
+
+          }
+
+      }
 
 
     /**
      * *********
      */
 
-    case _@msg => sender ! s"I recieved the msg $msg"
+    case _
+      @msg => sender ! s"I recieved the msg $msg"
   }
+
 }
 
 

@@ -34,14 +34,14 @@ object PlaceAllocator {
   def apply(): Props = Props(new PlaceAllocator())
 }
 
-object placeJsonFormatProtocol extends DefaultJsonProtocol {
-  implicit val format = listFormat(jsonFormat4(Place))
-}
-
-
 case class PlaceAllocator() extends Actor with ActorLogging {
 
   import PlaceAllocator._
+
+  object placeJsonFormatProtocol extends DefaultJsonProtocol {
+    implicit val format = listFormat(jsonFormat4(Place))
+  }
+
 
   override def preStart() {
     // get places from file places.json
