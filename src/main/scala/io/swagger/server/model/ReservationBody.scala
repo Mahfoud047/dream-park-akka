@@ -1,6 +1,6 @@
 package io.swagger.server.model
 
-case class PostReservation(
+case class ReservationBody(
                             placeId: Int,
                             startTime: String,
                             pricingPlanName: String,

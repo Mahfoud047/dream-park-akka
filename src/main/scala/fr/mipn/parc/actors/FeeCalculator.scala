@@ -52,7 +52,7 @@ case class FeeCalculator() extends Actor with ActorLogging {
 
     case calculateFee: CalculateFee =>
 
-      val chosenPlan = plans.find((p) => p._1 == calculateFee.pricingName).orNull._2
+      val chosenPlan = plans.find((p) => p._1 == calculateFee.pricingName).map(_._2).orNull
       if (chosenPlan == null) {
         sender ! ErrorResponse("plan not found")
       }

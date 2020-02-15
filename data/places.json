@@ -1,1 +1,1 @@
-[{"id":5,"placeTypeId":2,"status":"TAKEN","zone":"B"},{"id":1,"placeTypeId":1,"status":"FREE","zone":"A"},{"id":2,"placeTypeId":1,"status":"FREE","zone":"A"},{"id":3,"placeTypeId":2,"status":"FREE","zone":"B"},{"id":4,"placeTypeId":2,"status":"FREE","zone":"B"}]
+[{"id":5,"placeTypeId":2,"status":"FREE","zone":"B"},{"id":1,"placeTypeId":1,"status":"FREE","zone":"A"},{"id":2,"placeTypeId":1,"status":"FREE","zone":"A"},{"id":3,"placeTypeId":2,"status":"FREE","zone":"B"},{"id":4,"placeTypeId":2,"status":"FREE","zone":"B"}]

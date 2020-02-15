@@ -9,7 +9,7 @@ import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import fr.mipn.parc.ParkSystem
 import io.swagger.server.api.{DefaultApi, DefaultApiMarshaller, DefaultApiService}
-import io.swagger.server.model.{ErrorResponse, Payment, Place, PostReservation, PostSuccessResponse, PricingPlan, Reservation, SettleReservationResponse}
+import io.swagger.server.model.{ErrorResponse, Payment, Place, ReservationBody, PostSuccessResponse, PricingPlan, Reservation, SettleReservationResponse}
 import akka.pattern.ask
 import akka.util.Timeout
 
@@ -44,7 +44,7 @@ object DreamParkApp extends App {
 
     override implicit def toEntityMarshallerReservation: ToEntityMarshaller[Reservation] = jsonFormat7(Reservation)
 
-    implicit val reservationFormat: RootJsonFormat[PostReservation] = jsonFormat6(PostReservation)
+    implicit val reservationFormat: RootJsonFormat[ReservationBody] = jsonFormat6(ReservationBody)
 
     override implicit def fromRequestUnmarshallerPayment: RootJsonFormat[Payment] = jsonFormat1(Payment)
 
@@ -179,7 +179,7 @@ object DreamParkApp extends App {
      * Code: 400, Message: Bad Request, DataType: Error
      * Code: 422, Message: Unexpected error, DataType: Error
      */
-    override def reservationPost(body: PostReservation)
+    override def reservationPost(body: ReservationBody)
                                 (implicit toEntityMarshallerPostSuccessResponse: ToEntityMarshaller[PostSuccessResponse],
                           toEntityMarshallerError: ToEntityMarshaller[ErrorResponse]): Route = {
 

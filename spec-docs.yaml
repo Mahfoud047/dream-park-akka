@@ -26,7 +26,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorResponse'
 
   /place:
     get:
@@ -47,7 +47,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorResponse'
 
   /pricing:
     get:
@@ -68,7 +68,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorResponse'
 
 
   /reservation:
@@ -89,7 +89,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorResponse'
 
     post:
       summary: add new reservation
@@ -100,7 +100,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Reservation'
+              $ref: '#/components/schemas/ReservationBody'
       responses:
         201:
           description: reservation added
@@ -109,13 +109,13 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorResponse'
         422:
           description: Unexpected error
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorResponse'
 
 
   /reservation/{reservationId}:
@@ -141,7 +141,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorResponse'
 
 
     delete:
@@ -162,7 +162,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorResponse'
 
 
 
@@ -180,23 +180,27 @@ paths:
           schema:
             type: integer
       requestBody:
-        $ref: '#/components/requestBodies/PaymentBody'
+        $ref: '#/components/schemas/PaymentBody'
 
       responses:
-        204:
-          description: OK
+        200:
+          description: Reservation settled successfully
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/SettleReservationResponse'
         400:
           description: Bad Request
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorResponse'
         422:
           description: Unexpected error
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorResponse'
 
 
 components:
@@ -239,6 +243,7 @@ components:
         description:
           type:
             string
+
 
     PricingPlan:
       required:
@@ -297,7 +302,53 @@ components:
           type:
             string
 
-    Error:
+
+    PaymentBody:
+      description: A JSON object containing payment information
+      required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - amount
+              properties:
+                amount:
+                  type:
+                    number
+
+    ReservationBody:
+      description: A JSON object containing reservation information for post
+      required: true
+        content:
+          application/json:
+            schema:
+              required:
+                required:
+                  - placeId
+                  - startTime
+                  - pricingPlanName
+                  properties:
+                    placeId:
+                      type:
+                        integer
+                    startTime:
+                      type:
+                        string
+                      example:
+                        "2014-08-17T14:07"
+                    endTime:
+                      type:
+                        string
+                      example:
+                        "2014-08-17T16:07"
+                    pricingPlanName:
+                      type:
+                        string
+                    licensePlate:
+                      type:
+                        string
+
+    ErrorResponse:
       required:
         - message
       properties:
@@ -305,19 +356,23 @@ components:
           type:
             string
 
-  requestBodies:
-    PaymentBody:
-      description: A JSON object containing payment information
-      required: true
-      content:
-        application/json:
-          schema:
-            required:
-              - amount
-            properties:
-              amount:
-                type:
-                  number
+
+    SettleReservationResponse:
+      required:
+        - fee
+        - change
+      properties:
+        fee:
+          type:
+            number
+        change:
+          type:
+            number
+
+
+          
+
+ 
 
 
 

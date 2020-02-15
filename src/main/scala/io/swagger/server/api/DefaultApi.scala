@@ -2,7 +2,7 @@ package io.swagger.server.api
 
 import akka.http.scaladsl.marshalling.ToEntityMarshaller
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
-import io.swagger.server.model.{ErrorResponse, Payment, Place, PostReservation, PostSuccessResponse, PricingPlan, Reservation, SettleReservationResponse}
+import io.swagger.server.model.{ErrorResponse, Payment, Place, ReservationBody, PostSuccessResponse, PricingPlan, Reservation, SettleReservationResponse}
 import spray.json.RootJsonFormat
 import akka.http.scaladsl.model.HttpMethods._
 import akka.http.scaladsl.model.headers._
@@ -101,7 +101,7 @@ class DefaultApi(
         path("reservation") {
           post {
 
-            entity(as[PostReservation]) {
+            entity(as[ReservationBody]) {
               body => defaultService.reservationPost(body = body)
             }
 
@@ -210,7 +210,7 @@ trait DefaultApiService {
    * Code: 400, Message: Bad Request, DataType: Error
    * Code: 422, Message: Unexpected error, DataType: Error
    */
-  def reservationPost(body: PostReservation)(
+  def reservationPost(body: ReservationBody)(
     implicit toEntityMarshallerPostSuccessResponse: ToEntityMarshaller[PostSuccessResponse],
     toEntityMarshallerError: ToEntityMarshaller[ErrorResponse]): Route
 
@@ -264,7 +264,7 @@ trait DefaultApiService {
 
 trait DefaultApiMarshaller {
 
-  implicit def reservationFormat: RootJsonFormat[PostReservation]
+  implicit def reservationFormat: RootJsonFormat[ReservationBody]
 
   implicit def fromRequestUnmarshallerPayment: RootJsonFormat[Payment]
 

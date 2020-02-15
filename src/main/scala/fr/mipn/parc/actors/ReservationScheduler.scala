@@ -2,7 +2,7 @@ package fr.mipn.parc.actors
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.http.scaladsl.model.HttpHeader.ParsingResult.Ok
-import io.swagger.server.model.{ErrorResponse, Payment, PostReservation, PostSuccessResponse, Reservation, SettleReservationResponse}
+import io.swagger.server.model.{ErrorResponse, Payment, ReservationBody, PostSuccessResponse, Reservation, SettleReservationResponse}
 import akka.pattern.ask
 import akka.util.Timeout
 import fr.mipn.parc.ResponseTypes.{EitherCheckPricingExists, OptionAllocatePlace, OptionCalculateFee}
@@ -22,7 +22,7 @@ object ReservationScheduler {
     // empty
   ).withDefaultValue(null)
 
-  case class ReservePlace(reservationRequest: PostReservation)
+  case class ReservePlace(reservationRequest: ReservationBody)
 
   case class ResponseGeneralCheckReservation(
                                               existsPricing: EitherCheckPricingExists,
