@@ -251,6 +251,9 @@ case class ReservationScheduler(feeCalculator: ActorRef, placeAllocator: ActorRe
               //update reservation date
               val now = DateTime.now()
               val newReservation = reservation.copy(endTime = formatDate(now))
+
+              // TODO add reservation status to prevent consecutive settlements
+
               updateReservation(
                 client,
                 newReservation,
