@@ -10,6 +10,7 @@ import scala.io.Source
 object FileHelpers extends DefaultJsonProtocol {
 
   val RESERVATIONS_FILE_PATH = "data/reservations.json"
+  val PLACES_FILE_PATH = "data/places.json"
 
   /**
    * write a `Object: T` to the `filename`.
