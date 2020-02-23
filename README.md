@@ -3,7 +3,7 @@
 L’API est documentée au format OpenApis 3 [./openapi.yaml](http://github.com)
 
 ## Definition du Projet :
-Le projet est un système de gestion d'un espace de parking. Les utilisateurs du système peuvent Consulter à tout moment l'état d'espace (les places libres), ensuite ils peuvent réserver une place pour une date et un plan de tarification donnés. Ensuite l'utilisateur peut annuler la réservation avant la date de début et après il peux réglé la réservation et par la suite libérer la place pour d'autres utilisateurs.   
+Le projet est un système de gestion d'un espace de parking. Les utilisateurs du système peuvent Consulter à tout moment l'état d'espace (les places libres), ensuite ils peuvent réserver une place pour une date et un plan de tarification donnés. Ensuite l'utilisateur peut annuler la réservation avant la date de début et après il peux régler la réservation et par la suite libérer la place pour d'autres utilisateurs.   
 
 ## Modélisation En système d'acteurs :
 Dream Park est composé de 3 Acteurs principale (sans compter l'acteur API) qui sont
